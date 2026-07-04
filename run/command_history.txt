@@ -1,0 +1,9 @@
+/vibros off
+/vibros on
+/vibros off
+/time set day
+/weather clear
+/vibros on
+/vibros off
+/weather clear
+/time set day
