@@ -7,3 +7,7 @@
 /vibros off
 /weather clear
 /time set day
+/vibros on
+/vibros off
+/weather clear
+/time set day
