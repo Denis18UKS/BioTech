@@ -1,4 +1,4 @@
-package org.user.newmode;
+package neo.z_mods.biotech;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;

@@ -1,4 +1,4 @@
-package org.user.newmode;
+package neo.z_mods.biotech;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -36,7 +36,7 @@ import java.util.Random;
 
 @Mod(Vibros.MODID)
 public class Vibros {
-    public static final String MODID = "newmode";
+    public static final String MODID = "BioTech";
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public static boolean VIBROS_ACTIVE = false;
