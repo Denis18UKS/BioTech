@@ -1,6 +1,3 @@
-/vibros off
-/vibros on
-/vibros off
 /time set day
 /weather clear
 /vibros on
@@ -11,3 +8,43 @@
 /vibros off
 /weather clear
 /time set day
+/vibros on
+/vibros off
+/weather clear
+/time set day
+/izm info
+/izm sync Zunserz 10
+/izm converge
+/izm info
+/izm sync Zunserz 10
+/izm touch on
+/izm touch off
+/izm touch on
+/izm touch off
+/izm sync Zunserz 10
+/gamemode adventure @a
+/time set day
+/izm converge on
+/izm converge off
+/izm info
+/izm sync Dev 10
+/effect give Dev minecraft:invisibility 10 10 true
+/effect give Dev minecraft:invisibility 10 10 false
+/effect give Dev minecraft:invisibility 10 10 true
+/effect clear @a
+/izm converge off
+/izm converge on
+/izm converge off
+/izm touch on
+/izm touch off
+/izm info
+/time set day
+/izm touch on
+/gamemode adventure
+/gamemode adventure @a
+/izm touch off
+/izm info
+/izm sync Zuns
+/izm sync Zuns 10
+/izm sync Zunserz
+/izm sync Zunserz 5

@@ -1,0 +1,13 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "neo.z_mods.biotech.mixin",
+    "compatibilityLevel": "JAVA_21",
+    "mixins": [],
+    "client": [
+        "PlayerRenderMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}
