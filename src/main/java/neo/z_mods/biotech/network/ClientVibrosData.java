@@ -1,11 +1,13 @@
 package neo.z_mods.biotech.network;
 
 import neo.z_mods.biotech.VibrosEventHandler;
+import net.minecraft.util.Mth;
 
 /**
  * Клиентская копия состояния биовыброса.
- * В классе намеренно нет импортов из net.minecraft.client, поэтому пакет безопасно
- * регистрируется и на выделенном сервере.
+ *
+ * <p>Класс не содержит ссылок на {@code net.minecraft.client}, поэтому может
+ * безопасно присутствовать и на выделенном сервере.</p>
  */
 public final class ClientVibrosData {
     private static int phase = VibrosEventHandler.PHASE_IDLE;
@@ -52,11 +54,34 @@ public final class ClientVibrosData {
         return automaticEvents;
     }
 
+    /** Прогресс текущей фазы от 0 в начале до 1 в конце. */
+    public static float phaseProgress() {
+        if (totalTicks <= 0) {
+            return 0.0F;
+        }
+        return Mth.clamp(1.0F - remainingTicks / (float) totalTicks, 0.0F, 1.0F);
+    }
+
+    public static float remainingFraction() {
+        if (totalTicks <= 0) {
+            return 0.0F;
+        }
+        return Mth.clamp(remainingTicks / (float) totalTicks, 0.0F, 1.0F);
+    }
+
     public static boolean isWarning() {
         return phase == VibrosEventHandler.PHASE_WARNING;
     }
 
     public static boolean isActive() {
         return phase == VibrosEventHandler.PHASE_ACTIVE;
+    }
+
+    public static boolean isDissipating() {
+        return phase == VibrosEventHandler.PHASE_DISSIPATING;
+    }
+
+    public static boolean isStormSequence() {
+        return isWarning() || isActive() || isDissipating();
     }
 }

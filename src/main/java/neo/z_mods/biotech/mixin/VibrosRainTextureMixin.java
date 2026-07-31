@@ -1,7 +1,7 @@
 package neo.z_mods.biotech.mixin;
 
 import neo.z_mods.biotech.BioTech;
-import neo.z_mods.biotech.network.ClientVibrosData;
+import neo.z_mods.biotech.client.VibrosShaderManager;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.resources.ResourceLocation;
 import org.spongepowered.asm.mixin.Mixin;
@@ -30,6 +30,8 @@ public abstract class VibrosRainTextureMixin {
             require = 0
     )
     private ResourceLocation biotech$useGreenRainTexture(ResourceLocation originalTexture) {
-        return ClientVibrosData.isActive() ? BIOTECH_GREEN_RAIN : originalTexture;
+        return VibrosShaderManager.currentStormStrength() >= 0.68F
+                ? BIOTECH_GREEN_RAIN
+                : originalTexture;
     }
 }

@@ -14,13 +14,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 
-/**
- * Клиентские эффекты биовыброса.
- *
- * <p>Обзор больше не перекрывается коротким зелёным туманом. Цвет атмосферы
- * меняется мягко, а основная зелёная буря формируется встроенным процедурным
- * шейдером, цветом атмосферы и редким зелёным дождём.</p>
- */
+/** Клиентские частицы, цвет атмосферы, дрожь камеры и HUD биовыброса. */
 @EventBusSubscriber(modid = BioTech.MODID, value = Dist.CLIENT)
 public final class VibrosClientEffects {
     private static long clientTicks;
@@ -40,54 +34,78 @@ public final class VibrosClientEffects {
 
         ClientVibrosData.clientTick();
 
-        if (!ClientVibrosData.isActive() || clientTicks % 4L != 0L) {
+        float storm = VibrosShaderManager.currentStormStrength();
+        float dissolve = VibrosShaderManager.currentDissolveProgress();
+        if (storm < 0.20F || clientTicks % 4L != 0L) {
             return;
         }
 
-        // Небольшое количество спор создаёт объём без сплошной стены частиц.
-        for (int i = 0; i < 2; i++) {
-            double x = minecraft.player.getX() + (minecraft.level.random.nextDouble() - 0.5D) * 24.0D;
-            double y = minecraft.player.getY() + 2.0D + minecraft.level.random.nextDouble() * 10.0D;
-            double z = minecraft.player.getZ() + (minecraft.level.random.nextDouble() - 0.5D) * 24.0D;
+        int count = ClientVibrosData.isActive() ? 2 : 1;
+        for (int i = 0; i < count; i++) {
+            double x = minecraft.player.getX() + (minecraft.level.random.nextDouble() - 0.5D) * 25.0D;
+            double y = minecraft.player.getY() + 2.0D + minecraft.level.random.nextDouble() * 11.0D;
+            double z = minecraft.player.getZ() + (minecraft.level.random.nextDouble() - 0.5D) * 25.0D;
 
             minecraft.level.addParticle(
-                    ParticleTypes.WARPED_SPORE,
+                    dissolve > 0.05F ? ParticleTypes.GLOW : ParticleTypes.WARPED_SPORE,
                     x, y, z,
                     0.0D,
-                    -0.002D - minecraft.level.random.nextDouble() * 0.006D,
+                    -0.001D - minecraft.level.random.nextDouble() * 0.005D,
                     0.0D
             );
         }
     }
 
     /**
-     * Только лёгкая цветокоррекция дальнего тумана. Дальность прорисовки
-     * не уменьшается и событие RenderFog больше не отменяется.
+     * Мягко окрашивает только дальнюю атмосферу. Дальность обзора не меняется,
+     * поэтому зелёная стена тумана не появляется.
      */
     @SubscribeEvent
     public static void onFogColor(ViewportEvent.ComputeFogColor event) {
-        if (!ClientVibrosData.isActive()) {
+        float storm = VibrosShaderManager.currentStormStrength();
+        if (storm <= 0.001F) {
             return;
         }
 
         float pulse = 0.5F + 0.5F * Mth.sin((clientTicks + (float) event.getPartialTick()) * 0.018F);
-        float strength = 0.12F + pulse * 0.04F;
+        float flash = VibrosShaderManager.currentFlashIntensity();
+        float dissolveGlow = Mth.sin(VibrosShaderManager.currentDissolveProgress() * (float) Math.PI);
 
-        event.setRed(Mth.lerp(strength, event.getRed(), 0.025F));
-        event.setGreen(Mth.lerp(strength, event.getGreen(), 0.235F));
-        event.setBlue(Mth.lerp(strength, event.getBlue(), 0.125F));
+        float redTarget = 0.014F + flash * 0.025F;
+        float greenTarget = 0.115F + pulse * 0.025F + flash * 0.19F + dissolveGlow * 0.10F;
+        float blueTarget = 0.073F + flash * 0.055F;
+        float amount = Mth.clamp(storm * 0.46F, 0.0F, 0.58F);
+
+        event.setRed(Mth.lerp(amount, event.getRed(), redTarget));
+        event.setGreen(Mth.lerp(amount, event.getGreen(), greenTarget));
+        event.setBlue(Mth.lerp(amount, event.getBlue(), blueTarget));
     }
 
+    /**
+     * В последние десять секунд предупреждения дрожь плавно нарастает. Во время
+     * самого выброса остаётся слабая низкочастотная вибрация, а при рассеивании
+     * она постепенно исчезает.
+     */
     @SubscribeEvent
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
-        if (!ClientVibrosData.isActive()) {
+        float countdown = VibrosShaderManager.currentCountdownStrength();
+        float storm = VibrosShaderManager.currentStormStrength();
+        float dissolve = VibrosShaderManager.currentDissolveProgress();
+
+        float activeRumble = ClientVibrosData.isActive() ? 0.24F : 0.0F;
+        float dissipatingRumble = ClientVibrosData.isDissipating() ? (1.0F - dissolve) * 0.18F : 0.0F;
+        float strength = Mth.clamp(countdown + activeRumble + dissipatingRumble, 0.0F, 1.15F);
+        if (strength <= 0.001F) {
             return;
         }
 
         float time = clientTicks + (float) event.getPartialTick();
-        event.setRoll(event.getRoll() + Mth.sin(time * 0.095F) * 0.18F);
-        event.setPitch(event.getPitch() + Mth.sin(time * 0.061F) * 0.07F);
-        event.setYaw(event.getYaw() + Mth.cos(time * 0.052F) * 0.06F);
+        float low = Mth.sin(time * 0.105F) + Mth.sin(time * 0.041F + 1.7F) * 0.55F;
+        float fine = Mth.sin(time * 0.37F + 0.4F) * countdown;
+
+        event.setRoll(event.getRoll() + (low * 0.28F + fine * 0.11F) * strength);
+        event.setPitch(event.getPitch() + Mth.sin(time * 0.071F) * 0.15F * strength);
+        event.setYaw(event.getYaw() + Mth.cos(time * 0.057F) * 0.13F * strength);
     }
 
     @SubscribeEvent
@@ -102,6 +120,8 @@ public final class VibrosClientEffects {
             renderWarning(graphics, minecraft.font);
         } else if (ClientVibrosData.isActive()) {
             renderActive(graphics, minecraft.font);
+        } else if (ClientVibrosData.isDissipating()) {
+            renderDissipating(graphics, minecraft.font);
         }
     }
 
@@ -119,7 +139,7 @@ public final class VibrosClientEffects {
                 "Биовыброс через: " + formatTicks(ClientVibrosData.remainingTicks()),
                 screenWidth / 2,
                 top + 25,
-                0xFF86E36D
+                ClientVibrosData.remainingTicks() <= 200 ? 0xFFFFC95C : 0xFF86E36D
         );
 
         int barLeft = left + 14;
@@ -128,14 +148,7 @@ public final class VibrosClientEffects {
         int barHeight = 10;
         graphics.fill(barLeft - 2, barTop - 2, barLeft + barWidth + 2, barTop + barHeight + 2, 0xFF28322E);
 
-        float remainingFraction = ClientVibrosData.totalTicks() <= 0
-                ? 0.0F
-                : Mth.clamp(
-                        ClientVibrosData.remainingTicks() / (float) ClientVibrosData.totalTicks(),
-                        0.0F,
-                        1.0F
-                );
-
+        float remainingFraction = ClientVibrosData.remainingFraction();
         int segments = 5;
         int gap = 4;
         int segmentWidth = (barWidth - gap * (segments - 1)) / segments;
@@ -149,22 +162,44 @@ public final class VibrosClientEffects {
     }
 
     private static void renderActive(GuiGraphics graphics, Font font) {
-        // Никакой полноэкранной зелёной заливки: только компактный индикатор.
+        renderCompactPanel(
+                graphics,
+                font,
+                "БИОВЫБРОС",
+                "До окончания: " + formatTicks(ClientVibrosData.remainingTicks()),
+                0xFF8EF07B,
+                0xFF64A46F
+        );
+    }
+
+    private static void renderDissipating(GuiGraphics graphics, Font font) {
+        renderCompactPanel(
+                graphics,
+                font,
+                "ЯДРО РАССЕИВАЕТСЯ",
+                "Стабилизация: " + formatTicks(ClientVibrosData.remainingTicks()),
+                0xFFB1FF8A,
+                0xFF83D69A
+        );
+    }
+
+    private static void renderCompactPanel(
+            GuiGraphics graphics,
+            Font font,
+            String title,
+            String subtitle,
+            int titleColor,
+            int borderColor
+    ) {
         int screenWidth = graphics.guiWidth();
-        int panelWidth = 184;
+        int panelWidth = 205;
         int panelHeight = 39;
         int left = (screenWidth - panelWidth) / 2;
         int top = 12;
 
-        fillBorderedPanel(graphics, left, top, panelWidth, panelHeight, 0xD916211D, 0xFF64A46F);
-        graphics.drawCenteredString(font, "БИОВЫБРОС", screenWidth / 2, top + 7, 0xFF8EF07B);
-        graphics.drawCenteredString(
-                font,
-                "До окончания: " + formatTicks(ClientVibrosData.remainingTicks()),
-                screenWidth / 2,
-                top + 22,
-                0xFFD8E8DF
-        );
+        fillBorderedPanel(graphics, left, top, panelWidth, panelHeight, 0xD916211D, borderColor);
+        graphics.drawCenteredString(font, title, screenWidth / 2, top + 7, titleColor);
+        graphics.drawCenteredString(font, subtitle, screenWidth / 2, top + 22, 0xFFD8E8DF);
     }
 
     private static void fillBorderedPanel(

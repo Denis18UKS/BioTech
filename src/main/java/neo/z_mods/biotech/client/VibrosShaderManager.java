@@ -9,6 +9,7 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import neo.z_mods.biotech.BioTech;
 import neo.z_mods.biotech.network.ClientVibrosData;
+import neo.z_mods.biotech.VibrosEventHandler;
 import neo.z_mods.biotech.sound.ModSounds;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
@@ -17,6 +18,7 @@ import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -29,12 +31,11 @@ import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Встроенное объёмное небо биовыброса.
+ * Единый встроенный шейдер неба BioTech.
  *
- * <p>Тучи строятся процедурно непосредственно в мировом пространстве методом
- * послойного прохождения луча через облачный объём. Эффект не является
- * натянутой на экран картинкой, не следует за взглядом и не требует Iris,
- * Oculus или OptiFine.</p>
+ * <p>Он постоянно заменяет ванильное небо спокойными объёмными тучами и
+ * плавно проходит стадии: спокойствие → предупреждение → последние 10 секунд
+ * → активный биовыброс → рассеивание → спокойствие.</p>
  */
 public final class VibrosShaderManager {
     private static final ResourceLocation SKY_SHADER_LOCATION = ResourceLocation.fromNamespaceAndPath(
@@ -60,9 +61,12 @@ public final class VibrosShaderManager {
     private static boolean shaderLoadFailed;
     private static String shaderLoadError = "";
     private static boolean manualPreview;
-    private static boolean wasEventActive;
-    private static boolean wasEffectRequested;
-    private static float effectBlend;
+
+    private static float stormStrength;
+    private static float warningProgress;
+    private static float countdownStrength;
+    private static float dissolveProgress;
+    private static int previousPhase = Integer.MIN_VALUE;
 
     private static long animationEpochNanos = System.nanoTime();
     private static long nextFlashNanos = Long.MAX_VALUE;
@@ -75,17 +79,14 @@ public final class VibrosShaderManager {
     private static float flashWorldY;
     private static float flashWorldZ;
     private static float flashPitch = 1.0F;
+    private static float flashVolume = 1.0F;
 
     private VibrosShaderManager() {
     }
 
-    private static boolean isEffectRequested() {
-        return ClientVibrosData.isActive() || manualPreview;
-    }
-
-    /** Оставляет рендер активным ещё на короткое время для плавного затухания. */
+    /** После успешной загрузки шейдер рисуется постоянно и заменяет ванильное небо. */
     public static boolean shouldRenderSky() {
-        return skyShader != null && (isEffectRequested() || effectBlend > 0.01F);
+        return skyShader != null;
     }
 
     public static boolean isManualPreview() {
@@ -94,6 +95,22 @@ public final class VibrosShaderManager {
 
     public static boolean isShaderReady() {
         return skyShader != null;
+    }
+
+    public static float currentStormStrength() {
+        return stormStrength;
+    }
+
+    public static float currentWarningProgress() {
+        return warningProgress;
+    }
+
+    public static float currentCountdownStrength() {
+        return countdownStrength;
+    }
+
+    public static float currentDissolveProgress() {
+        return dissolveProgress;
     }
 
     public static float currentFlashIntensity() {
@@ -131,12 +148,12 @@ public final class VibrosShaderManager {
                     shaderLoadFailed = false;
                     shaderLoadError = "";
                     animationEpochNanos = System.nanoTime();
-                    BioTech.LOGGER.info("Biovibros volumetric sky shader loaded successfully");
+                    BioTech.LOGGER.info("BioTech seamless volumetric sky shader loaded successfully");
                 });
             } catch (Exception exception) {
                 markShaderLoadFailed(exception.getClass().getSimpleName() + ": " + exception.getMessage());
                 BioTech.LOGGER.error(
-                        "Biovibros sky shader could not be loaded. Minecraft will continue without the procedural sky.",
+                        "BioTech sky shader could not be loaded. Minecraft will continue with vanilla sky.",
                         exception
                 );
             }
@@ -151,7 +168,7 @@ public final class VibrosShaderManager {
             skyShader = null;
             shaderLoadFailed = true;
             shaderLoadError = error == null ? "неизвестная ошибка" : error;
-            BioTech.LOGGER.error("Biovibros shader disabled: {}", shaderLoadError);
+            BioTech.LOGGER.error("BioTech sky shader disabled: {}", shaderLoadError);
         }
     }
 
@@ -163,82 +180,65 @@ public final class VibrosShaderManager {
         @SubscribeEvent
         public static void onClientTick(ClientTickEvent.Post event) {
             Minecraft minecraft = Minecraft.getInstance();
-            boolean eventActive = ClientVibrosData.isActive();
-
-            if (eventActive && !wasEventActive) {
-                manualPreview = false;
-            }
-            wasEventActive = eventActive;
 
             while (TOGGLE_SHADER.consumeClick()) {
-                if (minecraft.player == null) {
-                    continue;
-                }
-
-                if (skyShader == null) {
-                    String details = shaderLoadFailed && !shaderLoadError.isBlank()
-                            ? shaderLoadError
-                            : "шейдер ещё не загружен";
-                    minecraft.player.displayClientMessage(
-                            Component.literal("Шейдер биовыброса недоступен: " + details)
-                                    .withStyle(ChatFormatting.RED),
-                            true
-                    );
-                    continue;
-                }
-
-                if (eventActive) {
-                    minecraft.player.displayClientMessage(
-                            Component.literal("Во время биовыброса атмосферное небо включено автоматически.")
-                                    .withStyle(ChatFormatting.DARK_GREEN),
-                            true
-                    );
-                    continue;
-                }
-
-                manualPreview = !manualPreview;
-                minecraft.player.displayClientMessage(
-                        Component.literal(
-                                        "Тестовый шейдер биовыброса: "
-                                                + (manualPreview ? "ВКЛЮЧЁН" : "ВЫКЛЮЧЕН")
-                                )
-                                .withStyle(manualPreview ? ChatFormatting.GREEN : ChatFormatting.GRAY),
-                        true
-                );
+                handlePreviewKey(minecraft);
             }
 
             if (minecraft.level == null || minecraft.player == null) {
                 manualPreview = false;
-                wasEventActive = false;
-                wasEffectRequested = false;
-                effectBlend = 0.0F;
+                stormStrength = 0.0F;
+                warningProgress = 0.0F;
+                countdownStrength = 0.0F;
+                dissolveProgress = 0.0F;
+                previousPhase = Integer.MIN_VALUE;
                 resetFlashState();
                 return;
             }
 
-            boolean requested = isEffectRequested();
-            float targetBlend = requested ? 1.0F : 0.0F;
-            if (eventActive) {
-                // Настоящий биовыброс сразу полностью скрывает солнце и луну.
-                effectBlend = 1.0F;
-            } else {
-                effectBlend += (targetBlend - effectBlend) * 0.115F;
-                if (Math.abs(targetBlend - effectBlend) < 0.001F) {
-                    effectBlend = targetBlend;
-                }
+            int phase = ClientVibrosData.phase();
+            if (phase != previousPhase) {
+                onPhaseChanged(minecraft, previousPhase, phase);
+                previousPhase = phase;
             }
 
+            float targetStorm = 0.0F;
+            float targetWarning = 0.0F;
+            float targetCountdown = 0.0F;
+            float targetDissolve = 0.0F;
+
+            if (manualPreview) {
+                targetStorm = 1.0F;
+                targetWarning = 1.0F;
+                targetCountdown = 0.22F;
+            } else if (ClientVibrosData.isWarning()) {
+                float progress = ClientVibrosData.phaseProgress();
+                targetWarning = smoothstep(0.0F, 1.0F, progress);
+                targetStorm = smoothstep(0.06F, 1.0F, progress);
+                targetCountdown = smoothstep(200.0F, 0.0F, ClientVibrosData.remainingTicks());
+            } else if (ClientVibrosData.isActive()) {
+                targetStorm = 1.0F;
+                targetWarning = 1.0F;
+                targetCountdown = 0.18F;
+            } else if (ClientVibrosData.isDissipating()) {
+                float progress = ClientVibrosData.phaseProgress();
+                targetDissolve = progress;
+                targetStorm = 1.0F - smoothstep(0.08F, 1.0F, progress);
+                targetWarning = targetStorm;
+                targetCountdown = Math.max(0.0F, 1.0F - progress * 3.2F);
+            }
+
+            stormStrength = approach(stormStrength, targetStorm, 0.045F);
+            warningProgress = approach(warningProgress, targetWarning, 0.040F);
+            countdownStrength = approach(countdownStrength, targetCountdown, 0.105F);
+            dissolveProgress = approach(dissolveProgress, targetDissolve, 0.070F);
+
+            float flashActivity = computeFlashActivity();
             long now = System.nanoTime();
-            if (requested && !wasEffectRequested) {
-                animationEpochNanos = now;
-                scheduleNextFlash(now, true);
-            } else if (!requested && wasEffectRequested) {
+            if (flashActivity > 0.08F) {
+                updateFlashAndSound(minecraft, now, flashActivity);
+            } else {
                 resetFlashState();
-            }
-            wasEffectRequested = requested;
-
-            if (requested) {
-                updateFlashAndSound(minecraft, now);
             }
         }
 
@@ -257,6 +257,9 @@ public final class VibrosShaderManager {
             Matrix4f inverseView = new Matrix4f(event.getModelViewMatrix()).invert();
             Matrix4f inverseProjection = new Matrix4f(event.getProjectionMatrix()).invert();
             float timeSeconds = (System.nanoTime() - animationEpochNanos) / (float) NANOS_PER_SECOND;
+            float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            float sunAngle = minecraft.level.getSunAngle(partialTick);
+            float dayFactor = Mth.clamp(Mth.cos(sunAngle) * 0.72F + 0.30F, 0.0F, 1.0F);
 
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
@@ -274,8 +277,12 @@ public final class VibrosShaderManager {
             );
             shader.safeGetUniform("FlashPosition").set(flashWorldX, flashWorldY, flashWorldZ);
             shader.safeGetUniform("Time").set(timeSeconds);
-            shader.safeGetUniform("Intensity").set(effectBlend);
+            shader.safeGetUniform("StormStrength").set(stormStrength);
+            shader.safeGetUniform("WarningProgress").set(warningProgress);
+            shader.safeGetUniform("CountdownStrength").set(countdownStrength);
+            shader.safeGetUniform("DissolveProgress").set(dissolveProgress);
             shader.safeGetUniform("FlashIntensity").set(computeFlashIntensity(System.nanoTime()));
+            shader.safeGetUniform("DayFactor").set(dayFactor);
 
             BufferBuilder buffer = Tesselator.getInstance().begin(
                     VertexFormat.Mode.QUADS,
@@ -294,9 +301,85 @@ public final class VibrosShaderManager {
         }
     }
 
-    private static void updateFlashAndSound(Minecraft minecraft, long now) {
+    private static void handlePreviewKey(Minecraft minecraft) {
+        if (minecraft.player == null) {
+            return;
+        }
+
+        if (skyShader == null) {
+            String details = shaderLoadFailed && !shaderLoadError.isBlank()
+                    ? shaderLoadError
+                    : "шейдер ещё не загружен";
+            minecraft.player.displayClientMessage(
+                    Component.literal("Шейдер биовыброса недоступен: " + details)
+                            .withStyle(ChatFormatting.RED),
+                    true
+            );
+            return;
+        }
+
+        if (ClientVibrosData.isStormSequence()) {
+            minecraft.player.displayClientMessage(
+                    Component.literal("Атмосфера сейчас управляется настоящим биовыбросом.")
+                            .withStyle(ChatFormatting.DARK_GREEN),
+                    true
+            );
+            return;
+        }
+
+        manualPreview = !manualPreview;
+        minecraft.player.displayClientMessage(
+                Component.literal(
+                                "Тестовый режим биовыброса: "
+                                        + (manualPreview ? "ВКЛЮЧЁН" : "ВЫКЛЮЧЕН")
+                        )
+                        .withStyle(manualPreview ? ChatFormatting.GREEN : ChatFormatting.GRAY),
+                true
+        );
+
+        if (manualPreview) {
+            animationEpochNanos = System.nanoTime();
+            scheduleNextFlash(System.nanoTime(), true, 1.0F);
+        }
+    }
+
+    private static void onPhaseChanged(Minecraft minecraft, int oldPhase, int newPhase) {
+        manualPreview = false;
+        long now = System.nanoTime();
+
+        if (newPhase == VibrosEventHandler.PHASE_WARNING) {
+            animationEpochNanos = now;
+            scheduleNextFlash(now, false, 0.25F);
+        } else if (newPhase == VibrosEventHandler.PHASE_ACTIVE) {
+            scheduleNextFlash(now, true, 1.0F);
+        } else if (newPhase == VibrosEventHandler.PHASE_DISSIPATING) {
+            startFlash(minecraft, now, 0.92F, true);
+        } else if (newPhase == VibrosEventHandler.PHASE_IDLE && oldPhase != Integer.MIN_VALUE) {
+            if (oldPhase == VibrosEventHandler.PHASE_DISSIPATING) {
+                // К моменту завершения зелёное сияние уже погасло, поэтому
+                // значение можно безопасно сбросить без повторного импульса.
+                dissolveProgress = 0.0F;
+            }
+            resetFlashState();
+        }
+    }
+
+    private static float computeFlashActivity() {
+        if (manualPreview || ClientVibrosData.isActive()) {
+            return 1.0F;
+        }
+        if (ClientVibrosData.isWarning()) {
+            return Mth.clamp((warningProgress - 0.34F) / 0.66F + countdownStrength * 0.42F, 0.0F, 1.0F);
+        }
+        if (ClientVibrosData.isDissipating()) {
+            return Mth.clamp((1.0F - dissolveProgress) * 0.76F + Mth.sin(dissolveProgress * (float) Math.PI) * 0.30F, 0.0F, 1.0F);
+        }
+        return 0.0F;
+    }
+
+    private static void updateFlashAndSound(Minecraft minecraft, long now, float activity) {
         if (!flashRunning && now >= nextFlashNanos) {
-            startFlash(minecraft, now);
+            startFlash(minecraft, now, activity, false);
         }
 
         if (!flashRunning) {
@@ -311,8 +394,8 @@ public final class VibrosShaderManager {
                     minecraft.player.getZ(),
                     ModSounds.VIBROS_RUMBLE.get(),
                     SoundSource.WEATHER,
-                    0.82F,
-                    Math.max(0.72F, flashPitch - 0.16F),
+                    0.48F + flashVolume * 0.42F,
+                    Math.max(0.68F, flashPitch - 0.18F),
                     false
             );
         }
@@ -320,33 +403,38 @@ public final class VibrosShaderManager {
         if (now >= flashStartNanos + flashDurationNanos) {
             flashRunning = false;
             rumblePlayed = false;
-            scheduleNextFlash(now, false);
+            scheduleNextFlash(now, false, activity);
         }
     }
 
-    private static void startFlash(Minecraft minecraft, long now) {
+    private static void startFlash(Minecraft minecraft, long now, float activity, boolean dissipationBurst) {
+        if (minecraft.player == null || minecraft.level == null) {
+            return;
+        }
+
         double angle = RANDOM.nextDouble() * Math.PI * 2.0D;
-        double distance = 260.0D + RANDOM.nextDouble() * 360.0D;
+        double distance = 220.0D + RANDOM.nextDouble() * 440.0D;
 
         flashWorldX = (float) (minecraft.player.getX() + Math.cos(angle) * distance);
-        flashWorldY = (float) (minecraft.player.getY() + 155.0D + RANDOM.nextDouble() * 150.0D);
+        flashWorldY = (float) (minecraft.player.getY() + 145.0D + RANDOM.nextDouble() * 190.0D);
         flashWorldZ = (float) (minecraft.player.getZ() + Math.sin(angle) * distance);
 
-        flashDurationNanos = (long) ((0.95D + RANDOM.nextDouble() * 0.70D) * NANOS_PER_SECOND);
+        flashDurationNanos = (long) ((dissipationBurst ? 2.25D : 0.95D + RANDOM.nextDouble() * 0.75D) * NANOS_PER_SECOND);
         flashStartNanos = now;
-        rumbleNanos = now + (long) ((0.13D + RANDOM.nextDouble() * 0.18D) * NANOS_PER_SECOND);
-        flashPitch = 0.88F + RANDOM.nextFloat() * 0.20F;
+        rumbleNanos = now + (long) ((0.14D + RANDOM.nextDouble() * 0.22D) * NANOS_PER_SECOND);
+        flashPitch = (dissipationBurst ? 0.76F : 0.88F) + RANDOM.nextFloat() * 0.18F;
+        flashVolume = Mth.clamp(activity, 0.20F, 1.0F);
         flashRunning = true;
         rumblePlayed = false;
 
-        double soundDistance = 11.0D + RANDOM.nextDouble() * 4.0D;
+        double soundDistance = 10.0D + RANDOM.nextDouble() * 6.0D;
         minecraft.level.playLocalSound(
                 minecraft.player.getX() + Math.cos(angle) * soundDistance,
-                minecraft.player.getY() + 6.0D + RANDOM.nextDouble() * 5.0D,
+                minecraft.player.getY() + 5.0D + RANDOM.nextDouble() * 7.0D,
                 minecraft.player.getZ() + Math.sin(angle) * soundDistance,
                 ModSounds.VIBROS_FLASH.get(),
                 SoundSource.WEATHER,
-                1.0F,
+                0.35F + flashVolume * 0.65F,
                 flashPitch,
                 false
         );
@@ -362,11 +450,11 @@ public final class VibrosShaderManager {
             return 0.0F;
         }
 
-        float first = gaussian(phase, 0.075F, 0.032F);
-        float second = gaussian(phase, 0.215F, 0.054F) * 0.72F;
-        float third = gaussian(phase, 0.405F, 0.105F) * 0.34F;
-        float afterglow = (1.0F - smoothstep(0.28F, 1.0F, phase)) * 0.10F;
-        return Math.min(1.35F, first + second + third + afterglow);
+        float first = gaussian(phase, 0.070F, 0.030F);
+        float second = gaussian(phase, 0.205F, 0.052F) * 0.72F;
+        float third = gaussian(phase, 0.405F, 0.110F) * 0.35F;
+        float afterglow = (1.0F - smoothstep(0.30F, 1.0F, phase)) * 0.11F;
+        return Math.min(1.45F, (first + second + third + afterglow) * flashVolume);
     }
 
     private static float gaussian(float value, float center, float width) {
@@ -374,15 +462,26 @@ public final class VibrosShaderManager {
         return (float) Math.exp(-normalized * normalized);
     }
 
+    private static float approach(float current, float target, float speed) {
+        float next = current + (target - current) * speed;
+        return Math.abs(target - next) < 0.0005F ? target : next;
+    }
+
     private static float smoothstep(float edge0, float edge1, float value) {
-        float t = Math.max(0.0F, Math.min(1.0F, (value - edge0) / (edge1 - edge0)));
+        if (edge0 > edge1) {
+            return 1.0F - smoothstep(edge1, edge0, value);
+        }
+        float t = Mth.clamp((value - edge0) / Math.max(edge1 - edge0, 0.0001F), 0.0F, 1.0F);
         return t * t * (3.0F - 2.0F * t);
     }
 
-    private static void scheduleNextFlash(long now, boolean firstFlash) {
+    private static void scheduleNextFlash(long now, boolean firstFlash, float activity) {
+        float clamped = Mth.clamp(activity, 0.0F, 1.0F);
+        double minDelay = Mth.lerp(clamped, 12.0F, 3.6F);
+        double randomRange = Mth.lerp(clamped, 10.0F, 5.5F);
         double delaySeconds = firstFlash
-                ? 1.4D + RANDOM.nextDouble() * 2.8D
-                : 4.5D + RANDOM.nextDouble() * 8.5D;
+                ? 0.55D + RANDOM.nextDouble() * 1.35D
+                : minDelay + RANDOM.nextDouble() * randomRange;
         nextFlashNanos = now + (long) (delaySeconds * NANOS_PER_SECOND);
     }
 
@@ -393,5 +492,6 @@ public final class VibrosShaderManager {
         rumbleNanos = 0L;
         flashRunning = false;
         rumblePlayed = false;
+        flashVolume = 1.0F;
     }
 }

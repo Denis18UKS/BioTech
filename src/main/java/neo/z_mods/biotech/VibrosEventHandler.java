@@ -20,6 +20,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -29,6 +30,8 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
+import net.neoforged.neoforge.event.entity.player.CanContinueSleepingEvent;
+import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -42,18 +45,22 @@ import java.util.List;
  * <ol>
  *     <li>IDLE — ожидание следующего случайного события;</li>
  *     <li>WARNING — предупреждение длительностью 2:15;</li>
- *     <li>ACTIVE — сам биовыброс длительностью от 5 до 15 минут.</li>
+ *     <li>ACTIVE — сам биовыброс длительностью от 4 до 5 минут реального времени;</li>
+ *     <li>DISSIPATING — плавное рассеивание атмосферы.</li>
  * </ol>
  */
 public class VibrosEventHandler {
     public static final int PHASE_IDLE = 0;
     public static final int PHASE_WARNING = 1;
     public static final int PHASE_ACTIVE = 2;
+    public static final int PHASE_DISSIPATING = 3;
 
     private static final int TICKS_PER_SECOND = 20;
+    private static final long NANOS_PER_TICK = 50_000_000L;
     private static final int WARNING_TICKS = 135 * TICKS_PER_SECOND;
-    private static final int MIN_ACTIVE_TICKS = 5 * 60 * TICKS_PER_SECOND;
-    private static final int MAX_ACTIVE_TICKS = 15 * 60 * TICKS_PER_SECOND;
+    private static final int MIN_ACTIVE_TICKS = 4 * 60 * TICKS_PER_SECOND;
+    private static final int MAX_ACTIVE_TICKS = 5 * 60 * TICKS_PER_SECOND;
+    private static final int DISSIPATION_TICKS = 25 * TICKS_PER_SECOND;
 
     // Автоматический биовыброс происходит через случайный промежуток 20–40 минут.
     private static final int MIN_AUTO_DELAY_TICKS = 20 * 60 * TICKS_PER_SECOND;
@@ -65,6 +72,8 @@ public class VibrosEventHandler {
     private static int phase = PHASE_IDLE;
     private static int phaseTicksRemaining;
     private static int phaseTotalTicks;
+    private static long phaseEndNanos;
+    private static int lastSyncedSecond = Integer.MIN_VALUE;
     private static int ticksUntilNext = randomBetween(MIN_AUTO_DELAY_TICKS, MAX_AUTO_DELAY_TICKS);
     private static boolean automaticEvents = true;
 
@@ -117,38 +126,81 @@ public class VibrosEventHandler {
             return;
         }
 
-        phaseTicksRemaining = Math.max(0, phaseTicksRemaining - 1);
+        updateTimedPhaseRemaining();
 
         if (phase == PHASE_WARNING) {
+            BioTech.VIBROS_ACTIVE = false;
+
+            // Настоящая гроза начинается только в последние десять секунд.
+            if (phaseTicksRemaining <= 10 * TICKS_PER_SECOND) {
+                for (ServerLevel level : server.getAllLevels()) {
+                    if (level.dimension().equals(Level.OVERWORLD)) {
+                        level.setWeatherParameters(0, 12000, true, true);
+                    }
+                }
+            }
+
             if (phaseTicksRemaining == 0) {
                 beginActive(server, randomBetween(MIN_ACTIVE_TICKS, MAX_ACTIVE_TICKS));
                 return;
             }
 
-            if (phaseTicksRemaining % TICKS_PER_SECOND == 0) {
-                syncAll(server);
-            }
+            syncIfSecondChanged(server);
             return;
         }
 
-        BioTech.VIBROS_ACTIVE = true;
-        int elapsedTicks = phaseTotalTicks - phaseTicksRemaining;
-        tickActiveVibros(server, elapsedTicks);
+        if (phase == PHASE_ACTIVE) {
+            BioTech.VIBROS_ACTIVE = true;
+            int elapsedTicks = phaseTotalTicks - phaseTicksRemaining;
+            tickActiveVibros(server, elapsedTicks);
 
+            if (phaseTicksRemaining == 0) {
+                beginDissipation(server);
+                return;
+            }
+
+            syncIfSecondChanged(server);
+            return;
+        }
+
+        // На стадии рассеивания опасные игровые эффекты уже прекращены,
+        // но небо, погода и запрет сна остаются до конца красивого перехода.
+        BioTech.VIBROS_ACTIVE = false;
         if (phaseTicksRemaining == 0) {
             finishVibros(server, true);
             return;
         }
 
-        if (phaseTicksRemaining % TICKS_PER_SECOND == 0) {
-            syncAll(server);
-        }
+        syncIfSecondChanged(server);
     }
 
     @SubscribeEvent
     public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             sendState(player);
+        }
+    }
+
+    /** Во время предупреждения, активной фазы и рассеивания лечь в кровать нельзя. */
+    @SubscribeEvent
+    public void onCanPlayerSleep(CanPlayerSleepEvent event) {
+        if (phase == PHASE_IDLE) {
+            return;
+        }
+
+        event.setProblem(Player.BedSleepingProblem.NOT_POSSIBLE_NOW);
+        event.getEntity().displayClientMessage(
+                Component.literal("Во время биовыброса невозможно уснуть.")
+                        .withStyle(ChatFormatting.DARK_GREEN, ChatFormatting.BOLD),
+                true
+        );
+    }
+
+    /** Если предупреждение началось, пока игрок уже спал, сон немедленно прекращается. */
+    @SubscribeEvent
+    public void onCanContinueSleeping(CanContinueSleepingEvent event) {
+        if (phase != PHASE_IDLE && event.getEntity() instanceof Player) {
+            event.setContinueSleeping(false);
         }
     }
 
@@ -380,6 +432,7 @@ public class VibrosEventHandler {
         String phaseName = switch (phase) {
             case PHASE_WARNING -> "ПРЕДУПРЕЖДЕНИЕ";
             case PHASE_ACTIVE -> "АКТИВЕН";
+            case PHASE_DISSIPATING -> "РАССЕИВАЕТСЯ";
             default -> "ОЖИДАНИЕ";
         };
 
@@ -423,9 +476,7 @@ public class VibrosEventHandler {
     }
 
     private static void beginWarning(MinecraftServer server) {
-        phase = PHASE_WARNING;
-        phaseTotalTicks = WARNING_TICKS;
-        phaseTicksRemaining = WARNING_TICKS;
+        beginTimedPhase(PHASE_WARNING, WARNING_TICKS);
         BioTech.VIBROS_ACTIVE = false;
 
         server.getPlayerList().broadcastSystemMessage(
@@ -438,9 +489,7 @@ public class VibrosEventHandler {
     }
 
     private static void beginActive(MinecraftServer server, int durationTicks) {
-        phase = PHASE_ACTIVE;
-        phaseTotalTicks = durationTicks;
-        phaseTicksRemaining = durationTicks;
+        beginTimedPhase(PHASE_ACTIVE, durationTicks);
         BioTech.VIBROS_ACTIVE = true;
 
         server.getPlayerList().broadcastSystemMessage(
@@ -449,13 +498,28 @@ public class VibrosEventHandler {
                 false
         );
         syncAll(server);
-        BioTech.LOGGER.info("Biovibros started for {} ticks", durationTicks);
+        BioTech.LOGGER.info("Biovibros started for {} ticks (real-time clock)", durationTicks);
+    }
+
+    private static void beginDissipation(MinecraftServer server) {
+        beginTimedPhase(PHASE_DISSIPATING, DISSIPATION_TICKS);
+        BioTech.VIBROS_ACTIVE = false;
+
+        server.getPlayerList().broadcastSystemMessage(
+                Component.literal("Биовыброс ослабевает. Облачное ядро начинает рассеиваться.")
+                        .withStyle(ChatFormatting.GREEN),
+                false
+        );
+        syncAll(server);
+        BioTech.LOGGER.info("Biovibros dissipation started");
     }
 
     private static void finishVibros(MinecraftServer server, boolean naturallyEnded) {
         phase = PHASE_IDLE;
         phaseTotalTicks = 0;
         phaseTicksRemaining = 0;
+        phaseEndNanos = 0L;
+        lastSyncedSecond = Integer.MIN_VALUE;
         BioTech.VIBROS_ACTIVE = false;
         ticksUntilNext = randomBetween(MIN_AUTO_DELAY_TICKS, MAX_AUTO_DELAY_TICKS);
 
@@ -467,13 +531,45 @@ public class VibrosEventHandler {
 
         server.getPlayerList().broadcastSystemMessage(
                 Component.literal(naturallyEnded
-                                ? "Биовыброс завершён. Атмосфера постепенно очищается."
+                                ? "Биовыброс завершён. Атмосфера стабилизировалась."
                                 : "Биовыброс был принудительно остановлен.")
                         .withStyle(ChatFormatting.GREEN),
                 false
         );
         syncAll(server);
         BioTech.LOGGER.info("Biovibros ended");
+    }
+
+    private static void beginTimedPhase(int newPhase, int durationTicks) {
+        phase = newPhase;
+        phaseTotalTicks = Math.max(1, durationTicks);
+        phaseTicksRemaining = phaseTotalTicks;
+        phaseEndNanos = System.nanoTime() + phaseTotalTicks * NANOS_PER_TICK;
+        lastSyncedSecond = Integer.MIN_VALUE;
+    }
+
+    /**
+     * Таймер фаз основан на монотонных системных часах, поэтому активный
+     * биовыброс длится 4–5 минут реального времени даже при просадках TPS.
+     */
+    private static void updateTimedPhaseRemaining() {
+        if (phase == PHASE_IDLE || phaseEndNanos <= 0L) {
+            return;
+        }
+
+        long remainingNanos = Math.max(0L, phaseEndNanos - System.nanoTime());
+        phaseTicksRemaining = (int) Math.min(
+                phaseTotalTicks,
+                (remainingNanos + NANOS_PER_TICK - 1L) / NANOS_PER_TICK
+        );
+    }
+
+    private static void syncIfSecondChanged(MinecraftServer server) {
+        int second = (phaseTicksRemaining + TICKS_PER_SECOND - 1) / TICKS_PER_SECOND;
+        if (second != lastSyncedSecond) {
+            lastSyncedSecond = second;
+            syncAll(server);
+        }
     }
 
     private static void syncAll(MinecraftServer server) {
