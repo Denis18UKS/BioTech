@@ -1,11 +1,3 @@
-/effect give Dev minecraft:invisibility 10 10 true
-/effect give Dev minecraft:invisibility 10 10 false
-/effect give Dev minecraft:invisibility 10 10 true
-/effect clear @a
-/izm converge off
-/izm converge on
-/izm converge off
-/izm touch on
 /izm touch off
 /izm info
 /time set day
@@ -47,4 +39,12 @@
 /vibros status
 /vibros schedule 2
 /time set midnight
+/time set day
+/vibros status
+/time set day
+/vibros status
+/vibros schedule 2
+/vibros status
+/time set day
+/weather clear
 /time set day
