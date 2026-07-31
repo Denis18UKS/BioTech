@@ -1,7 +1,5 @@
 /izm touch on
 /izm touch off
-/izm touch on
-/izm touch off
 /izm sync Zunserz 10
 /gamemode adventure @a
 /time set day
@@ -43,6 +41,8 @@
 /vibros status
 /vibros off
 /weather clear
+/time set day
+/time set midnight
 /time set day
 /time set midnight
 /time set day
