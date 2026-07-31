@@ -1,7 +1,3 @@
-/time set day
-/weather clear
-/vibros on
-/vibros off
 /weather clear
 /time set day
 /vibros on
@@ -48,3 +44,7 @@
 /izm sync Zuns 10
 /izm sync Zunserz
 /izm sync Zunserz 5
+/izm info
+/vibros status
+/vibros now
+/vibros off
