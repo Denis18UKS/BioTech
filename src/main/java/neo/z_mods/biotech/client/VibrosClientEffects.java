@@ -15,7 +15,11 @@ import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 
 /**
- * Только клиентские визуальные эффекты биовыброса.
+ * Клиентские эффекты биовыброса.
+ *
+ * <p>Обзор больше не перекрывается коротким зелёным туманом. Цвет атмосферы
+ * меняется мягко, а основная зелёная буря формируется цветом неба, облаков,
+ * дождя и опциональным шейдерпаком.</p>
  */
 @EventBusSubscriber(modid = BioTech.MODID, value = Dist.CLIENT)
 public final class VibrosClientEffects {
@@ -36,49 +40,42 @@ public final class VibrosClientEffects {
 
         ClientVibrosData.clientTick();
 
-        if (!ClientVibrosData.isActive() || clientTicks % 2L != 0L) {
+        if (!ClientVibrosData.isActive() || clientTicks % 4L != 0L) {
             return;
         }
 
-        // Клиентские частицы создают плотные биопатогенные облака без лишней нагрузки на сеть.
-        for (int i = 0; i < 5; i++) {
-            double x = minecraft.player.getX() + (minecraft.level.random.nextDouble() - 0.5D) * 18.0D;
-            double y = minecraft.player.getY() + 1.0D + minecraft.level.random.nextDouble() * 8.0D;
-            double z = minecraft.player.getZ() + (minecraft.level.random.nextDouble() - 0.5D) * 18.0D;
+        // Небольшое количество спор создаёт объём без сплошной стены частиц.
+        for (int i = 0; i < 2; i++) {
+            double x = minecraft.player.getX() + (minecraft.level.random.nextDouble() - 0.5D) * 24.0D;
+            double y = minecraft.player.getY() + 2.0D + minecraft.level.random.nextDouble() * 10.0D;
+            double z = minecraft.player.getZ() + (minecraft.level.random.nextDouble() - 0.5D) * 24.0D;
 
             minecraft.level.addParticle(
                     ParticleTypes.WARPED_SPORE,
                     x, y, z,
                     0.0D,
-                    -0.005D - minecraft.level.random.nextDouble() * 0.01D,
+                    -0.002D - minecraft.level.random.nextDouble() * 0.006D,
                     0.0D
             );
         }
     }
 
+    /**
+     * Только лёгкая цветокоррекция дальнего тумана. Дальность прорисовки
+     * не уменьшается и событие RenderFog больше не отменяется.
+     */
     @SubscribeEvent
     public static void onFogColor(ViewportEvent.ComputeFogColor event) {
         if (!ClientVibrosData.isActive()) {
             return;
         }
 
-        float pulse = 0.5F + 0.5F * Mth.sin((clientTicks + (float) event.getPartialTick()) * 0.035F);
-        float strength = 0.72F + pulse * 0.08F;
+        float pulse = 0.5F + 0.5F * Mth.sin((clientTicks + (float) event.getPartialTick()) * 0.018F);
+        float strength = 0.12F + pulse * 0.04F;
 
-        event.setRed(Mth.lerp(strength, event.getRed(), 0.035F));
-        event.setGreen(Mth.lerp(strength, event.getGreen(), 0.34F));
-        event.setBlue(Mth.lerp(strength, event.getBlue(), 0.20F));
-    }
-
-    @SubscribeEvent
-    public static void onRenderFog(ViewportEvent.RenderFog event) {
-        if (!ClientVibrosData.isActive()) {
-            return;
-        }
-
-        event.setNearPlaneDistance(1.5F);
-        event.setFarPlaneDistance(30.0F);
-        event.setCanceled(true);
+        event.setRed(Mth.lerp(strength, event.getRed(), 0.025F));
+        event.setGreen(Mth.lerp(strength, event.getGreen(), 0.235F));
+        event.setBlue(Mth.lerp(strength, event.getBlue(), 0.125F));
     }
 
     @SubscribeEvent
@@ -88,9 +85,9 @@ public final class VibrosClientEffects {
         }
 
         float time = clientTicks + (float) event.getPartialTick();
-        event.setRoll(event.getRoll() + Mth.sin(time * 0.16F) * 0.42F);
-        event.setPitch(event.getPitch() + Mth.sin(time * 0.11F) * 0.18F);
-        event.setYaw(event.getYaw() + Mth.cos(time * 0.09F) * 0.14F);
+        event.setRoll(event.getRoll() + Mth.sin(time * 0.095F) * 0.18F);
+        event.setPitch(event.getPitch() + Mth.sin(time * 0.061F) * 0.07F);
+        event.setYaw(event.getYaw() + Mth.cos(time * 0.052F) * 0.06F);
     }
 
     @SubscribeEvent
@@ -116,17 +113,14 @@ public final class VibrosClientEffects {
         int top = 18;
 
         fillBorderedPanel(graphics, left, top, panelWidth, panelHeight, 0xD9141C1A, 0xFF5A7567);
-
+        graphics.drawCenteredString(font, "ПРЕДУПРЕЖДЕНИЕ О БИОВЫБРОСЕ", screenWidth / 2, top + 8, 0xFFE1F1E8);
         graphics.drawCenteredString(
                 font,
-                "ПРЕДУПРЕЖДЕНИЕ О БИОВЫБРОСЕ",
+                "Биовыброс через: " + formatTicks(ClientVibrosData.remainingTicks()),
                 screenWidth / 2,
-                top + 8,
-                0xFFE1F1E8
+                top + 25,
+                0xFF86E36D
         );
-
-        String countdown = "Биовыброс через: " + formatTicks(ClientVibrosData.remainingTicks());
-        graphics.drawCenteredString(font, countdown, screenWidth / 2, top + 25, 0xFF86E36D);
 
         int barLeft = left + 14;
         int barTop = top + 43;
@@ -150,18 +144,13 @@ public final class VibrosClientEffects {
         for (int i = 0; i < segments; i++) {
             int x1 = barLeft + i * (segmentWidth + gap);
             int x2 = x1 + segmentWidth;
-            int color = i < litSegments ? 0xFF69C94D : 0xFF202925;
-            graphics.fill(x1, barTop, x2, barTop + barHeight, color);
+            graphics.fill(x1, barTop, x2, barTop + barHeight, i < litSegments ? 0xFF69C94D : 0xFF202925);
         }
     }
 
     private static void renderActive(GuiGraphics graphics, Font font) {
+        // Никакой полноэкранной зелёной заливки: только компактный индикатор.
         int screenWidth = graphics.guiWidth();
-        int screenHeight = graphics.guiHeight();
-
-        int pulseAlpha = 15 + (int) ((Mth.sin(clientTicks * 0.065F) + 1.0F) * 5.0F);
-        graphics.fill(0, 0, screenWidth, screenHeight, (pulseAlpha << 24) | 0x00369643);
-
         int panelWidth = 184;
         int panelHeight = 39;
         int left = (screenWidth - panelWidth) / 2;

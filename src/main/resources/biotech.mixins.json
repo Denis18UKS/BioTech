@@ -5,7 +5,9 @@
     "compatibilityLevel": "JAVA_21",
     "mixins": [],
     "client": [
-        "PlayerRenderMixin"
+        "PlayerRenderMixin",
+        "VibrosAtmosphereMixin",
+        "VibrosRainTextureMixin"
     ],
     "injectors": {
         "defaultRequire": 1
