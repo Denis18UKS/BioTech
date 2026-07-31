@@ -5,5 +5,6 @@
   "key.categories.biotech": "BioTech",
   "key.biotech.toggle_vibros_shader": "Toggle biovibros shader preview",
   "subtitle.biotech.vibros_flash": "Biovibros energy flashes",
-  "subtitle.biotech.vibros_rumble": "Biovibros clouds rumble"
+  "subtitle.biotech.vibros_rumble": "Biovibros clouds rumble",
+  "death.attack.biovibros": "%1$s was killed by the biovibros"
 }
