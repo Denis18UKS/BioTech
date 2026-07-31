@@ -4,13 +4,13 @@
   "attributes": ["Position"],
   "samplers": [],
   "uniforms": [
-    {"name":"InvViewMat","type":"matrix4x4","count":16,"values":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0]},
-    {"name":"InvProjMat","type":"matrix4x4","count":16,"values":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0]},
+    {"name":"InvViewMat","type":"matrix4x4","count":16,"values":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]},
+    {"name":"InvProjMat","type":"matrix4x4","count":16,"values":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]},
     {"name":"CameraPosition","type":"float","count":3,"values":[0.0,0.0,0.0]},
-    {"name":"FlashPosition0","type":"float","count":3,"values":[0.0,260.0,0.0]},
-    {"name":"FlashPosition1","type":"float","count":3,"values":[0.0,260.0,0.0]},
-    {"name":"FlashPosition2","type":"float","count":3,"values":[0.0,260.0,0.0]},
-    {"name":"FlashPosition3","type":"float","count":3,"values":[0.0,260.0,0.0]},
+    {"name":"FlashPosition0","type":"float","count":3,"values":[0.0,420.0,0.0]},
+    {"name":"FlashPosition1","type":"float","count":3,"values":[0.0,420.0,0.0]},
+    {"name":"FlashPosition2","type":"float","count":3,"values":[0.0,420.0,0.0]},
+    {"name":"FlashPosition3","type":"float","count":3,"values":[0.0,420.0,0.0]},
     {"name":"Time","type":"float","count":1,"values":[0.0]},
     {"name":"StormStrength","type":"float","count":1,"values":[0.0]},
     {"name":"WarningProgress","type":"float","count":1,"values":[0.0]},
@@ -20,7 +20,6 @@
     {"name":"FlashIntensity1","type":"float","count":1,"values":[0.0]},
     {"name":"FlashIntensity2","type":"float","count":1,"values":[0.0]},
     {"name":"FlashIntensity3","type":"float","count":1,"values":[0.0]},
-    {"name":"DayFactor","type":"float","count":1,"values":[1.0]},
-    {"name":"NoiseAmount","type":"float","count":1,"values":[0.12]}
+    {"name":"DayFactor","type":"float","count":1,"values":[1.0]}
   ]
 }
