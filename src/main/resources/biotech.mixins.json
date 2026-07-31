@@ -1,17 +1,18 @@
 {
-    "required": true,
-    "minVersion": "0.8",
-    "package": "neo.z_mods.biotech.mixin",
-    "compatibilityLevel": "JAVA_21",
-    "mixins": [],
-    "client": [
-        "PlayerRenderMixin",
-        "VibrosAtmosphereMixin",
-        "VibrosRainDensityMixin",
-        "VibrosRainTextureMixin",
-        "VibrosVanillaCloudMixin"
-    ],
-    "injectors": {
-        "defaultRequire": 1
-    }
+  "required": true,
+  "minVersion": "0.8",
+  "package": "neo.z_mods.biotech.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [],
+  "client": [
+    "PlayerRenderMixin",
+    "VibrosAtmosphereMixin",
+    "VibrosRainDensityMixin",
+    "VibrosRainTextureMixin",
+    "VibrosVanillaCloudMixin",
+    "ShaderNoiseMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }
