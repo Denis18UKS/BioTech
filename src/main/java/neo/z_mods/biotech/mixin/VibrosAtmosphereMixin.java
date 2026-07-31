@@ -9,39 +9,29 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Синхронизирует ванильное освещение мира с плавными стадиями шейдера.
- * Дальность тумана и дальность прорисовки здесь не изменяются.
- */
+/** Синхронизирует освещение мира с плавными стадиями встроенного неба BioTech. */
 @Mixin(ClientLevel.class)
 public abstract class VibrosAtmosphereMixin {
 
     @Inject(method = "getSkyDarken", at = @At("RETURN"), cancellable = true)
     private void biotech$darkenWorldDuringVibros(float partialTick, CallbackInfoReturnable<Float> cir) {
         float original = cir.getReturnValue();
-
-        // Даже спокойное небо BioTech всегда облачное. Днём немного приглушаем
-        // небесный свет, чтобы земля соответствовала плотным тучам, но ночью
-        // почти не вмешиваемся и не превращаем обычную погоду в вечную ночь.
-        float daylight = Mth.clamp((original - 0.18F) / 0.82F, 0.0F, 1.0F);
-        float calmOvercast = original * (1.0F - daylight * 0.24F);
-
         float storm = VibrosShaderManager.currentStormStrength();
+
+        // В спокойном состоянии сохраняем естественное ванильное освещение:
+        // светлое днём и нормальное ночью. Облачность создаётся самим небом,
+        // а не постоянным искусственным затемнением всей поверхности.
         if (storm <= 0.001F) {
-            cir.setReturnValue(calmOvercast);
             return;
         }
 
         float flash = VibrosShaderManager.currentFlashIntensity();
         float dissolveGlow = Mth.sin(VibrosShaderManager.currentDissolveProgress() * (float) Math.PI);
+        float stormBrightness = 0.095F
+                + Math.min(flash, 1.8F) * 0.060F
+                + dissolveGlow * 0.080F;
 
-        // Активная фаза остаётся тёмной даже посреди дня. Краткие вспышки и
-        // финальное сияние слегка поднимают небесную яркость, создавая ощущение
-        // зелёного света от облаков, а не обычного солнечного освещения.
-        float stormBrightness = 0.105F
-                + Math.min(flash, 1.8F) * 0.055F
-                + dissolveGlow * 0.075F;
-        cir.setReturnValue(Mth.lerp(storm, calmOvercast, stormBrightness));
+        cir.setReturnValue(Mth.lerp(storm, original, stormBrightness));
     }
 
     @Inject(method = "getSkyColor", at = @At("RETURN"), cancellable = true)
