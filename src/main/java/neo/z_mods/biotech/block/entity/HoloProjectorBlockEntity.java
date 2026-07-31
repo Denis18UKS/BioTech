@@ -11,6 +11,9 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.MenuProvider;
@@ -20,6 +23,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
@@ -33,7 +37,8 @@ public class HoloProjectorBlockEntity extends BlockEntity implements Container, 
     private boolean completed;
 
     private final ContainerData dataAccess = new ContainerData() {
-        @Override public int get(int index) {
+        @Override
+        public int get(int index) {
             return switch (index) {
                 case 0 -> selectedDefinition;
                 case 1 -> selectedLayer + 1;
@@ -41,15 +46,22 @@ public class HoloProjectorBlockEntity extends BlockEntity implements Container, 
                 default -> 0;
             };
         }
-        @Override public void set(int index, int value) {
+
+        @Override
+        public void set(int index, int value) {
             switch (index) {
                 case 0 -> selectedDefinition = value;
                 case 1 -> selectedLayer = value - 1;
                 case 2 -> completed = value != 0;
-                default -> { }
+                default -> {
+                }
             }
         }
-        @Override public int getCount() { return 3; }
+
+        @Override
+        public int getCount() {
+            return 3;
+        }
     };
 
     public HoloProjectorBlockEntity(BlockPos pos, BlockState state) {
@@ -57,53 +69,90 @@ public class HoloProjectorBlockEntity extends BlockEntity implements Container, 
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, HoloProjectorBlockEntity projector) {
-        if (level.getGameTime() % 20L != 0L) return;
+        if (level.getGameTime() % 20L != 0L) {
+            return;
+        }
+
         MultiblockDefinition definition = projector.getDefinition();
         Direction direction = projector.getProjectionDirection();
-        projector.completed = definition != null && definition.validate(level, pos.above(), direction);
-        projector.setChanged();
+        boolean nowCompleted = definition != null && definition.validate(level, pos.above(), direction);
+
+        // Раньше блок-сущность помечалась изменённой каждую секунду, но клиент
+        // не получал новые параметры проекции. Теперь пакет отправляется только
+        // при реальном изменении состояния.
+        if (projector.completed != nowCompleted) {
+            projector.completed = nowCompleted;
+            projector.markChangedAndSync();
+        }
     }
 
     public void selectDefinition(int index) {
         List<MultiblockDefinition> definitions = MultiblockRegistry.all();
-        if (definitions.isEmpty()) return;
+        if (definitions.isEmpty()) {
+            return;
+        }
         selectedDefinition = Math.floorMod(index, definitions.size());
         selectedLayer = -1;
         completed = false;
-        setChanged();
+        markChangedAndSync();
     }
 
     public void changeLayer(int delta) {
         MultiblockDefinition definition = getDefinition();
-        if (definition == null) return;
+        if (definition == null) {
+            return;
+        }
         int maxLayer = definition.maxLayer();
-        if (selectedLayer < 0) selectedLayer = delta > 0 ? 0 : maxLayer;
-        else selectedLayer = Math.floorMod(selectedLayer + delta, maxLayer + 1);
-        setChanged();
+        if (selectedLayer < 0) {
+            selectedLayer = delta > 0 ? 0 : maxLayer;
+        } else {
+            selectedLayer = Math.floorMod(selectedLayer + delta, maxLayer + 1);
+        }
+        markChangedAndSync();
     }
 
     public void showAllLayers() {
         selectedLayer = -1;
-        setChanged();
+        markChangedAndSync();
     }
 
     public MultiblockDefinition getDefinition() {
         MultiblockDefinition blueprintDefinition = MultiblockRegistry.fromBlueprint(items.get(0));
-        if (blueprintDefinition != null) return blueprintDefinition;
+        if (blueprintDefinition != null) {
+            return blueprintDefinition;
+        }
         List<MultiblockDefinition> definitions = MultiblockRegistry.all();
-        if (definitions.isEmpty()) return null;
+        if (definitions.isEmpty()) {
+            return null;
+        }
         return definitions.get(Math.floorMod(selectedDefinition, definitions.size()));
     }
 
-    public int getSelectedLayer() { return selectedLayer; }
-    public boolean isCompleted() { return completed; }
+    public int getSelectedLayer() {
+        return selectedLayer;
+    }
+
+    public boolean isCompleted() {
+        return completed;
+    }
 
     public Direction getProjectionDirection() {
         BlockState state = getBlockState();
-        return state.hasProperty(HoloProjectorBlock.FACING) ? state.getValue(HoloProjectorBlock.FACING) : Direction.NORTH;
+        return state.hasProperty(HoloProjectorBlock.FACING)
+                ? state.getValue(HoloProjectorBlock.FACING)
+                : Direction.NORTH;
     }
 
-    @Override protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+    private void markChangedAndSync() {
+        setChanged();
+        if (level != null && !level.isClientSide()) {
+            BlockState state = getBlockState();
+            level.sendBlockUpdated(worldPosition, state, state, Block.UPDATE_CLIENTS);
+        }
+    }
+
+    @Override
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         ContainerHelper.saveAllItems(tag, items, registries);
         tag.putInt("SelectedDefinition", selectedDefinition);
@@ -111,7 +160,8 @@ public class HoloProjectorBlockEntity extends BlockEntity implements Container, 
         tag.putBoolean("Completed", completed);
     }
 
-    @Override protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+    @Override
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         ContainerHelper.loadAllItems(tag, items, registries);
         selectedDefinition = tag.getInt("SelectedDefinition");
@@ -119,16 +169,84 @@ public class HoloProjectorBlockEntity extends BlockEntity implements Container, 
         completed = tag.getBoolean("Completed");
     }
 
-    @Override public int getContainerSize() { return items.size(); }
-    @Override public boolean isEmpty() { return items.stream().allMatch(ItemStack::isEmpty); }
-    @Override public ItemStack getItem(int slot) { return items.get(slot); }
-    @Override public ItemStack removeItem(int slot, int amount) { ItemStack stack = ContainerHelper.removeItem(items, slot, amount); if (!stack.isEmpty()) setChanged(); return stack; }
-    @Override public ItemStack removeItemNoUpdate(int slot) { ItemStack stack = ContainerHelper.takeItem(items, slot); setChanged(); return stack; }
-    @Override public void setItem(int slot, ItemStack stack) { items.set(slot, stack); stack.limitSize(getMaxStackSize(stack)); setChanged(); }
-    @Override public boolean stillValid(Player player) { return Container.stillValidBlockEntity(this, player); }
-    @Override public void clearContent() { items.clear(); setChanged(); }
-    @Override public Component getDisplayName() { return Component.translatable("container.biotech.holo_projector"); }
-    @Nullable @Override public AbstractContainerMenu createMenu(int id, Inventory inventory, Player player) {
+    /** Данные проекции передаются клиенту при загрузке чанка. */
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        CompoundTag tag = new CompoundTag();
+        saveAdditional(tag, registries);
+        return tag;
+    }
+
+    /** Данные проекции передаются клиенту сразу после выбора чертежа или слоя. */
+    @Nullable
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public int getContainerSize() {
+        return items.size();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return items.stream().allMatch(ItemStack::isEmpty);
+    }
+
+    @Override
+    public ItemStack getItem(int slot) {
+        return items.get(slot);
+    }
+
+    @Override
+    public ItemStack removeItem(int slot, int amount) {
+        ItemStack stack = ContainerHelper.removeItem(items, slot, amount);
+        if (!stack.isEmpty()) {
+            markChangedAndSync();
+        }
+        return stack;
+    }
+
+    @Override
+    public ItemStack removeItemNoUpdate(int slot) {
+        ItemStack stack = ContainerHelper.takeItem(items, slot);
+        markChangedAndSync();
+        return stack;
+    }
+
+    @Override
+    public void setItem(int slot, ItemStack stack) {
+        items.set(slot, stack);
+        stack.limitSize(getMaxStackSize(stack));
+        selectedLayer = -1;
+        completed = false;
+        markChangedAndSync();
+    }
+
+    @Override
+    public boolean stillValid(Player player) {
+        return Container.stillValidBlockEntity(this, player);
+    }
+
+    @Override
+    public void clearContent() {
+        for (int slot = 0; slot < items.size(); slot++) {
+            items.set(slot, ItemStack.EMPTY);
+        }
+        selectedLayer = -1;
+        completed = false;
+        markChangedAndSync();
+    }
+
+    @Override
+    public Component getDisplayName() {
+        return Component.translatable("container.biotech.holo_projector");
+    }
+
+    @Nullable
+    @Override
+    public AbstractContainerMenu createMenu(int id, Inventory inventory, Player player) {
         return new HoloProjectorMenu(id, inventory, this, dataAccess, this);
     }
 }

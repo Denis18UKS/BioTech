@@ -17,14 +17,13 @@ uniform float FlashIntensity1;
 uniform float FlashIntensity2;
 uniform float FlashIntensity3;
 uniform float DayFactor;
-uniform float NoiseAmount;
 
 in vec2 screenPosition;
 out vec4 fragColor;
 
-const int CLOUD_STEPS = 24;
-const float RAY_START = 2.0;
-const float RAY_END = 1380.0;
+const int CLOUD_STEPS = 30;
+const float RAY_START = 4.0;
+const float RAY_END = 1500.0;
 
 float hash31(vec3 p) {
     p = fract(p * 0.1031);
@@ -32,10 +31,10 @@ float hash31(vec3 p) {
     return fract((p.x + p.y) * p.z);
 }
 
-float hash21(vec2 p) {
-    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+vec2 hash22(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
     p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
+    return fract((p3.xx + p3.yz) * p3.zy);
 }
 
 float noise3(vec3 p) {
@@ -63,11 +62,11 @@ float noise3(vec3 p) {
 
 float fbm3(vec3 p) {
     float value = 0.0;
-    float amplitude = 0.54;
+    float amplitude = 0.55;
     for (int octave = 0; octave < 4; octave++) {
         value += noise3(p) * amplitude;
-        p = p * 2.02 + vec3(13.7, 8.9, 17.3);
-        amplitude *= 0.48;
+        p = p * 2.01 + vec3(13.7, 8.9, 17.3);
+        amplitude *= 0.47;
     }
     return value;
 }
@@ -77,56 +76,72 @@ float band(float y, float bottom0, float bottom1, float top0, float top1) {
 }
 
 /*
- * Облака закреплены по абсолютной мировой высоте.
- * Они больше не едут вверх и вниз вместе с камерой, поэтому к ним можно долететь
- * и физически войти внутрь облачного слоя.
+ * Облачное ядро находится высоко над обычной зоной игры. Плотная часть
+ * активного БВ начинается выше максимальной высоты обычного строительства,
+ * поэтому тучи больше не спускаются до земли и не поглощают ландшафт.
  */
 float cloudVerticalMask(float worldY) {
-    float calmLayer = band(worldY, 118.0, 150.0, 232.0, 278.0);
-
-    float stormLower = band(worldY, 82.0, 126.0, 286.0, 348.0);
-    float stormUpper = band(worldY, 224.0, 272.0, 430.0, 520.0) * 0.82;
-    float stormLayer = max(stormLower, stormUpper);
-
+    float calmLayer = band(worldY, 238.0, 276.0, 372.0, 430.0);
+    float stormLayer = band(worldY, 296.0, 338.0, 510.0, 590.0);
     return mix(calmLayer, stormLayer, StormStrength);
 }
 
 float worldHeightFraction(float worldY) {
-    float calm = clamp((worldY - 118.0) / 160.0, 0.0, 1.0);
-    float storm = clamp((worldY - 82.0) / 438.0, 0.0, 1.0);
+    float calm = clamp((worldY - 238.0) / 192.0, 0.0, 1.0);
+    float storm = clamp((worldY - 296.0) / 294.0, 0.0, 1.0);
     return mix(calm, storm, StormStrength);
 }
 
+/* Расстояние до границы ячейки Вороного. Узор гладкий и не зависит от пикселя. */
+float voronoiEdge(vec2 p) {
+    vec2 cell = floor(p);
+    vec2 local = fract(p);
+    float nearest = 100.0;
+    float second = 100.0;
+
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            vec2 neighbour = vec2(float(x), float(y));
+            vec2 point = neighbour + hash22(cell + neighbour);
+            vec2 delta = point - local;
+            float distanceSquared = dot(delta, delta);
+
+            if (distanceSquared < nearest) {
+                second = nearest;
+                nearest = distanceSquared;
+            } else if (distanceSquared < second) {
+                second = distanceSquared;
+            }
+        }
+    }
+
+    float edgeDistance = sqrt(second) - sqrt(nearest);
+    return 1.0 - smoothstep(0.035, 0.125, edgeDistance);
+}
+
 /*
- * Непрерывная сеть контуров из мирового шума. Здесь нет mod(), экранных
- * координат и разрезов по полусферам, поэтому линии не образуют видимых склеек.
+ * Биологические мембраны из двух размеров ячеек. Используются только плавные
+ * мировые координаты: gl_FragCoord, случайный пиксельный джиттер и зерно удалены.
  */
 float veinNetwork(vec3 worldPosition, float density) {
-    float reverse = mix(1.0, -0.82, smoothstep(0.0, 1.0, DissolveProgress));
-    vec3 p = vec3(
-        worldPosition.x * 0.0080,
-        worldPosition.y * 0.0105,
-        worldPosition.z * 0.0080
-    );
+    float reverse = mix(1.0, -0.72, smoothstep(0.0, 1.0, DissolveProgress));
+    vec3 drift = vec3(Time * 0.010 * reverse, Time * 0.0018, -Time * 0.0065 * reverse);
 
-    vec3 drift = vec3(Time * 0.010 * reverse, Time * 0.0020, -Time * 0.007 * reverse);
-    float warpA = noise3(p * 0.72 + drift + vec3(7.0, -2.0, 4.0));
-    float warpB = noise3(p.yzx * 1.08 - drift * 0.44 + vec3(-3.0, 8.0, 1.0));
-    vec3 warped = p + vec3(warpA - 0.5, warpB - 0.5, warpA - warpB) * 0.92;
+    float warpX = noise3(worldPosition * vec3(0.0030, 0.0042, 0.0030) + drift + vec3(7.0, 2.0, -4.0));
+    float warpZ = noise3(worldPosition.zxy * vec3(0.0036, 0.0030, 0.0036) - drift * 0.48 + vec3(-3.0, 8.0, 1.0));
 
-    float fieldA = noise3(warped * 1.18 + vec3(4.0, 1.0, -7.0));
-    float fieldB = noise3(warped.zxy * 1.76 + vec3(-8.0, 5.0, 2.0));
-    float fieldC = noise3(warped.yxz * 2.45 + vec3(3.0, -6.0, 9.0));
+    vec2 p = worldPosition.xz * 0.0065;
+    p += vec2(warpX - 0.5, warpZ - 0.5) * 1.38;
+    p += worldPosition.y * vec2(0.0012, -0.0009);
+    p += vec2(Time * 0.010 * reverse, -Time * 0.006 * reverse);
 
-    float mainLine = 1.0 - smoothstep(0.018, 0.070, abs(fieldA - 0.535));
-    float branchLine = 1.0 - smoothstep(0.014, 0.055, abs(fieldB - 0.505));
-    float fineLine = 1.0 - smoothstep(0.010, 0.040, abs(fieldC - 0.575));
+    float largeCells = voronoiEdge(p * 0.66);
+    float mediumCells = voronoiEdge(p + vec2(4.7, -8.2));
+    float network = max(largeCells, mediumCells * 0.58);
 
-    float branchMask = smoothstep(0.34, 0.66, warpA * 0.62 + warpB * 0.38);
-    float network = max(mainLine, branchLine * branchMask);
-    network = max(network, fineLine * branchMask * 0.62);
-
-    return network * density;
+    // Мягкое расширение контура вместо точечного высокочастотного свечения.
+    float softMask = smoothstep(0.08, 0.52, density);
+    return network * density * softMask;
 }
 
 float cloudDensity(
@@ -147,50 +162,43 @@ float cloudDensity(
     heightFraction = worldHeightFraction(worldPosition.y);
 
     vec3 base = vec3(
-        worldPosition.x * 0.00218,
-        worldPosition.y * 0.00605,
-        worldPosition.z * 0.00218
+        worldPosition.x * 0.00205,
+        worldPosition.y * 0.00520,
+        worldPosition.z * 0.00205
     );
 
-    float reverse = mix(1.0, -0.82, smoothstep(0.0, 1.0, DissolveProgress));
-    vec3 wind = vec3(Time * 0.0105 * reverse, Time * 0.0017, -Time * 0.0071 * reverse);
+    float reverse = mix(1.0, -0.72, smoothstep(0.0, 1.0, DissolveProgress));
+    vec3 wind = vec3(Time * 0.0090 * reverse, Time * 0.0012, -Time * 0.0062 * reverse);
 
-    float warpLarge = noise3(base * 0.46 + wind * 0.40);
-    float warpMedium = noise3(base * 0.92 - wind * 0.25 + vec3(8.0, 3.0, -5.0));
-    float bendX = sin(base.z * 0.69 + Time * 0.013 * reverse + warpLarge * 2.35);
-    float bendZ = cos(base.x * 0.66 - Time * 0.011 * reverse - warpLarge * 2.05);
+    float warpLarge = noise3(base * 0.48 + wind * 0.42);
+    float warpMedium = noise3(base * 0.88 - wind * 0.22 + vec3(8.0, 3.0, -5.0));
+    float bendX = sin(base.z * 0.63 + Time * 0.011 * reverse + warpLarge * 2.10);
+    float bendZ = cos(base.x * 0.60 - Time * 0.009 * reverse - warpLarge * 1.90);
 
-    vec3 warped = base + wind + vec3(bendX, 0.0, bendZ) * (0.13 + StormStrength * 0.31);
-    warped += vec3(warpLarge * 0.50, warpMedium * 0.06, warpLarge * 0.38);
+    vec3 warped = base + wind + vec3(bendX, 0.0, bendZ) * (0.10 + StormStrength * 0.24);
+    warped += vec3(warpLarge * 0.42, warpMedium * 0.045, warpLarge * 0.34);
 
-    float broad = fbm3(warped * 0.60 + vec3(3.2, 1.7, 8.4));
-    float body = fbm3(warped * 1.13 + vec3(11.0, -3.0, 5.0));
-    // Высокочастотная детализация раньше давала зелёную рябь и россыпь точек.
-    // В режиме LOW она подмешивается едва заметно, в режиме NONE исключается полностью.
-    float detailSmooth = noise3(warped * 1.85 + vec3(-7.0, Time * 0.0022, 12.0));
-    float detailFine = noise3(warped * 3.20 + vec3(-7.0, Time * 0.0030, 12.0));
-    float detail = mix(detailSmooth, detailFine, clamp(NoiseAmount, 0.0, 1.0));
+    float broad = fbm3(warped * 0.58 + vec3(3.2, 1.7, 8.4));
+    float body = fbm3(warped * 1.04 + vec3(11.0, -3.0, 5.0));
 
-    float threshold = 0.612
-            - StormStrength * 0.235
-            - CountdownStrength * 0.090
-            - WarningProgress * 0.030;
+    float threshold = 0.615
+            - StormStrength * 0.225
+            - CountdownStrength * 0.078
+            - WarningProgress * 0.026;
 
     float billow = 1.0 - abs(heightFraction * 2.0 - 1.0);
-    float detailWeight = 0.035 + clamp(NoiseAmount, 0.0, 1.0) * 0.035;
-    float raw = broad * 0.53 + body * 0.39 + detail * detailWeight + billow * 0.105;
-    float density = smoothstep(threshold, threshold + 0.265, raw) * verticalMask;
+    float raw = broad * 0.58 + body * 0.34 + billow * 0.125;
+    float density = smoothstep(threshold, threshold + 0.255, raw) * verticalMask;
 
-    density *= 1.0 - smoothstep(1030.0, RAY_END, travel);
+    density *= 1.0 - smoothstep(1120.0, RAY_END, travel);
 
-    float stormExcess = StormStrength * (0.18 + CountdownStrength * 0.10);
-    density = clamp(density + stormExcess * verticalMask * (broad - 0.30), 0.0, 1.0);
+    float stormExcess = StormStrength * (0.16 + CountdownStrength * 0.08);
+    density = clamp(density + stormExcess * verticalMask * (broad - 0.34), 0.0, 1.0);
 
-    float folded = 1.0 - abs(detail * 2.0 - 1.0);
-    float cellular = 1.0 - abs(warpMedium * 2.0 - 1.0);
-    ridge = pow(clamp(folded * 0.70 + cellular * 0.30, 0.0, 1.0), 5.5)
+    float folded = 1.0 - abs(warpMedium * 2.0 - 1.0);
+    ridge = pow(clamp(folded, 0.0, 1.0), 5.0)
             * density
-            * smoothstep(0.40, 0.76, body + broad * 0.24);
+            * smoothstep(0.42, 0.75, body + broad * 0.20);
 
     veins = veinNetwork(worldPosition, density);
     return density;
@@ -216,10 +224,10 @@ vec3 stormSky(vec3 direction) {
     float up = clamp(direction.y * 0.5 + 0.5, 0.0, 1.0);
     float horizon = pow(clamp(1.0 - abs(direction.y), 0.0, 1.0), 2.8);
 
-    vec3 low = vec3(0.0015, 0.0100, 0.0120);
-    vec3 high = vec3(0.0008, 0.0065, 0.0100);
+    vec3 low = vec3(0.0012, 0.0080, 0.0090);
+    vec3 high = vec3(0.0006, 0.0048, 0.0070);
     vec3 color = mix(low, high, pow(up, 0.75));
-    color += vec3(0.003, 0.038, 0.023) * horizon;
+    color += vec3(0.002, 0.030, 0.018) * horizon;
     return color;
 }
 
@@ -266,14 +274,7 @@ void main() {
     color += vec3(0.018, 0.240, 0.082) * skyGlow;
 
     float stepLength = (RAY_END - RAY_START) / float(CLOUD_STEPS);
-
-    // Раньше случайное смещение менялось каждый кадр из-за Time и создавало
-    // очень сильную рябь. Теперь узор статичен и имеет максимум 12% амплитуды.
-    // При NoiseAmount == 0 луч всегда начинается по центру шага без зерна.
-    vec2 stablePixel = floor(gl_FragCoord.xy * 0.5);
-    float stableNoise = hash21(stablePixel + vec2(17.0, 53.0)) - 0.5;
-    float jitter = 0.5 + stableNoise * clamp(NoiseAmount, 0.0, 1.0);
-    float travel = RAY_START + stepLength * jitter;
+    float travel = RAY_START + stepLength * 0.5;
 
     vec3 accumulatedColor = vec3(0.0);
     float accumulatedAlpha = 0.0;
@@ -288,62 +289,61 @@ void main() {
         float density = cloudDensity(sampleWorld, travel, ridge, heightFraction, veins);
 
         if (density > 0.001) {
-            float enteringEdge = clamp((density - previousDensity) * 3.0 + 0.42, 0.0, 1.0);
-            float depthLight = exp(-(travel - RAY_START) * 0.00072);
-            float topLight = mix(0.12, 0.88, heightFraction);
-            float internalMotion = 0.76 + 0.24 * sin(
-                    Time * 0.34 + sampleWorld.x * 0.0064 + sampleWorld.z * 0.0054
+            float enteringEdge = clamp((density - previousDensity) * 2.8 + 0.40, 0.0, 1.0);
+            float depthLight = exp(-(travel - RAY_START) * 0.00068);
+            float topLight = mix(0.10, 0.86, heightFraction);
+            float internalMotion = 0.78 + 0.22 * sin(
+                    Time * 0.27 + sampleWorld.x * 0.0048 + sampleWorld.z * 0.0040
             );
 
             vec3 calmShadow = vec3(0.095, 0.105, 0.120) * (0.55 + DayFactor * 0.70);
             vec3 calmBody = vec3(0.330, 0.355, 0.390) * (0.48 + DayFactor * 0.72);
             vec3 calmTop = vec3(0.750, 0.790, 0.835) * (0.45 + DayFactor * 0.72);
 
-            vec3 stormShadow = vec3(0.0018, 0.0080, 0.0100);
-            vec3 stormBody = vec3(0.0040, 0.0370, 0.0280);
-            vec3 stormTop = vec3(0.0140, 0.1150, 0.0610);
+            vec3 stormShadow = vec3(0.0008, 0.0045, 0.0050);
+            vec3 stormBody = vec3(0.0020, 0.0180, 0.0130);
+            vec3 stormTop = vec3(0.0070, 0.0650, 0.0340);
 
             vec3 shadow = mix(calmShadow, stormShadow, StormStrength);
             vec3 bodyColor = mix(calmBody, stormBody, StormStrength);
             vec3 topColor = mix(calmTop, stormTop, StormStrength);
             vec3 sampleColor = mix(shadow, bodyColor, topLight);
-            sampleColor = mix(sampleColor, topColor, enteringEdge * 0.48 * depthLight);
+            sampleColor = mix(sampleColor, topColor, enteringEdge * 0.42 * depthLight);
 
             float local = totalLocalFlash(sampleWorld);
             float flashCore = min(local, 2.55);
-            sampleColor += vec3(0.070, 0.980, 0.310)
+            sampleColor += vec3(0.060, 0.880, 0.270)
                     * flashCore
-                    * (0.28 + density * 1.15);
+                    * (0.24 + density * 1.05);
 
-            float veinPulse = 0.78 + 0.22 * sin(
-                    Time * 0.74
-                    + sampleWorld.x * 0.010
-                    + sampleWorld.y * 0.014
-                    - sampleWorld.z * 0.008
+            float veinPulse = 0.86 + 0.14 * sin(
+                    Time * 0.48
+                    + sampleWorld.x * 0.006
+                    + sampleWorld.y * 0.009
+                    - sampleWorld.z * 0.005
             );
 
-            float veinHalo = pow(clamp(veins, 0.0, 1.0), 0.62);
-            float veinCore = pow(clamp(veins, 0.0, 1.0), 2.35);
+            float veinHalo = pow(clamp(veins, 0.0, 1.0), 0.58);
+            float veinCore = pow(clamp(veins, 0.0, 1.0), 2.10);
             float veinStrength = StormStrength
                     * veinPulse
-                    * (0.82 + flashCore * 1.35 + dissolveGlow * 0.92);
+                    * (0.92 + flashCore * 1.20 + dissolveGlow * 0.75);
 
-            // Широкий мягкий ореол и отдельное яркое ядро делают прожилки
-            // очевидными зелёными линиями, а не общей зелёной окраской туч.
-            sampleColor += vec3(0.020, 0.520, 0.130)
+            // Широкие чистые зелёные контуры, близкие к исходной атмосфере БВ.
+            sampleColor += vec3(0.010, 0.360, 0.080)
                     * veinHalo
                     * veinStrength;
-            sampleColor += vec3(0.090, 1.850, 0.420)
+            sampleColor += vec3(0.060, 1.420, 0.300)
                     * veinCore
                     * veinStrength
-                    * 1.55;
+                    * 1.42;
 
             float biological = ridge * StormStrength * internalMotion;
-            sampleColor += vec3(0.018, 0.330, 0.095)
+            sampleColor += vec3(0.012, 0.210, 0.060)
                     * biological
-                    * (0.32 + flashCore * 0.82);
+                    * (0.28 + flashCore * 0.70);
 
-            float extinction = density * stepLength * mix(0.0108, 0.0228, StormStrength);
+            float extinction = density * stepLength * mix(0.0092, 0.0188, StormStrength);
             float sampleAlpha = 1.0 - exp(-extinction);
             float remaining = 1.0 - accumulatedAlpha;
 
@@ -354,7 +354,7 @@ void main() {
         previousDensity = density;
         travel += stepLength;
 
-        if (accumulatedAlpha > 0.989) {
+        if (accumulatedAlpha > 0.988) {
             break;
         }
     }
@@ -362,7 +362,7 @@ void main() {
     color = color * (1.0 - accumulatedAlpha) + accumulatedColor;
 
     float horizon = pow(clamp(1.0 - abs(worldDirection.y), 0.0, 1.0), 3.0);
-    color = mix(color, color * vec3(0.72, 0.84, 0.78), horizon * StormStrength * 0.20);
+    color = mix(color, color * vec3(0.72, 0.84, 0.78), horizon * StormStrength * 0.16);
 
     fragColor = vec4(max(color, vec3(0.0)), 1.0);
 }
