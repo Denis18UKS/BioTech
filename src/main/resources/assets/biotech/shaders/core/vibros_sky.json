@@ -35,7 +35,25 @@
       "values": [0.0, 0.0, 0.0]
     },
     {
-      "name": "FlashPosition",
+      "name": "FlashPosition0",
+      "type": "float",
+      "count": 3,
+      "values": [0.0, 260.0, 0.0]
+    },
+    {
+      "name": "FlashPosition1",
+      "type": "float",
+      "count": 3,
+      "values": [0.0, 260.0, 0.0]
+    },
+    {
+      "name": "FlashPosition2",
+      "type": "float",
+      "count": 3,
+      "values": [0.0, 260.0, 0.0]
+    },
+    {
+      "name": "FlashPosition3",
       "type": "float",
       "count": 3,
       "values": [0.0, 260.0, 0.0]
@@ -71,7 +89,25 @@
       "values": [0.0]
     },
     {
-      "name": "FlashIntensity",
+      "name": "FlashIntensity0",
+      "type": "float",
+      "count": 1,
+      "values": [0.0]
+    },
+    {
+      "name": "FlashIntensity1",
+      "type": "float",
+      "count": 1,
+      "values": [0.0]
+    },
+    {
+      "name": "FlashIntensity2",
+      "type": "float",
+      "count": 1,
+      "values": [0.0]
+    },
+    {
+      "name": "FlashIntensity3",
       "type": "float",
       "count": 1,
       "values": [0.0]

@@ -1,12 +1,3 @@
-/izm touch on
-/izm touch off
-/izm sync Zunserz 10
-/gamemode adventure @a
-/time set day
-/izm converge on
-/izm converge off
-/izm info
-/izm sync Dev 10
 /effect give Dev minecraft:invisibility 10 10 true
 /effect give Dev minecraft:invisibility 10 10 false
 /effect give Dev minecraft:invisibility 10 10 true
@@ -46,5 +37,14 @@
 /time set day
 /time set midnight
 /time set day
+/time set midnight
+/time set day
+/vibros status
+/time set night
+/time set day
+/vibros status
+/vibros auto off
+/vibros status
+/vibros schedule 2
 /time set midnight
 /time set day

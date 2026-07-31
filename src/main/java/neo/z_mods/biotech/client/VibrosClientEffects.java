@@ -19,6 +19,10 @@ import net.neoforged.neoforge.client.event.ViewportEvent;
 public final class VibrosClientEffects {
     private static long clientTicks;
 
+    private static float warningPanelProgress;
+    private static float warningBarFraction = 1.0F;
+    private static boolean warningWasActive;
+
     private VibrosClientEffects() {
     }
 
@@ -29,10 +33,14 @@ public final class VibrosClientEffects {
 
         if (minecraft.player == null || minecraft.level == null) {
             ClientVibrosData.clear();
+            warningPanelProgress = 0.0F;
+            warningBarFraction = 1.0F;
+            warningWasActive = false;
             return;
         }
 
         ClientVibrosData.clientTick();
+        updateWarningAnimation();
 
         float storm = VibrosShaderManager.currentStormStrength();
         float dissolve = VibrosShaderManager.currentDissolveProgress();
@@ -56,6 +64,27 @@ public final class VibrosClientEffects {
         }
     }
 
+    private static void updateWarningAnimation() {
+        boolean warning = ClientVibrosData.isWarning();
+        float target = warning ? 1.0F : 0.0F;
+        float speed = warning ? 0.145F : 0.205F;
+        warningPanelProgress = approach(warningPanelProgress, target, speed);
+
+        if (warning && !warningWasActive) {
+            warningWasActive = true;
+            warningBarFraction = ClientVibrosData.remainingFraction();
+        }
+
+        if (warning) {
+            // Только уменьшаем отображаемую долю. Даже старый сетевой пакет не
+            // сможет визуально восстановить уже опустевшую часть шкалы.
+            warningBarFraction = Math.min(warningBarFraction, ClientVibrosData.remainingFraction());
+        } else if (warningPanelProgress <= 0.001F) {
+            warningWasActive = false;
+            warningBarFraction = 1.0F;
+        }
+    }
+
     /**
      * Мягко окрашивает только дальнюю атмосферу. Дальность обзора не меняется,
      * поэтому зелёная стена тумана не появляется.
@@ -71,10 +100,10 @@ public final class VibrosClientEffects {
         float flash = VibrosShaderManager.currentFlashIntensity();
         float dissolveGlow = Mth.sin(VibrosShaderManager.currentDissolveProgress() * (float) Math.PI);
 
-        float redTarget = 0.014F + flash * 0.025F;
-        float greenTarget = 0.115F + pulse * 0.025F + flash * 0.19F + dissolveGlow * 0.10F;
-        float blueTarget = 0.073F + flash * 0.055F;
-        float amount = Mth.clamp(storm * 0.46F, 0.0F, 0.58F);
+        float redTarget = 0.012F + flash * 0.020F;
+        float greenTarget = 0.105F + pulse * 0.022F + flash * 0.185F + dissolveGlow * 0.10F;
+        float blueTarget = 0.064F + flash * 0.046F;
+        float amount = Mth.clamp(storm * 0.43F, 0.0F, 0.55F);
 
         event.setRed(Mth.lerp(amount, event.getRed(), redTarget));
         event.setGreen(Mth.lerp(amount, event.getGreen(), greenTarget));
@@ -89,7 +118,6 @@ public final class VibrosClientEffects {
     @SubscribeEvent
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
         float countdown = VibrosShaderManager.currentCountdownStrength();
-        float storm = VibrosShaderManager.currentStormStrength();
         float dissolve = VibrosShaderManager.currentDissolveProgress();
 
         float activeRumble = ClientVibrosData.isActive() ? 0.24F : 0.0F;
@@ -116,9 +144,14 @@ public final class VibrosClientEffects {
         }
 
         GuiGraphics graphics = event.getGuiGraphics();
-        if (ClientVibrosData.isWarning()) {
+
+        // Панель продолжает уезжать влево после завершения предупреждения,
+        // вместо мгновенного исчезновения в один кадр.
+        if (warningPanelProgress > 0.003F) {
             renderWarning(graphics, minecraft.font);
-        } else if (ClientVibrosData.isActive()) {
+        }
+
+        if (ClientVibrosData.isActive()) {
             renderActive(graphics, minecraft.font);
         } else if (ClientVibrosData.isDissipating()) {
             renderDissipating(graphics, minecraft.font);
@@ -126,38 +159,60 @@ public final class VibrosClientEffects {
     }
 
     private static void renderWarning(GuiGraphics graphics, Font font) {
-        int screenWidth = graphics.guiWidth();
-        int panelWidth = Math.min(286, screenWidth - 20);
-        int panelHeight = 64;
-        int left = (screenWidth - panelWidth) / 2;
-        int top = 18;
+        int panelWidth = Math.min(282, graphics.guiWidth() - 16);
+        int panelHeight = 86;
 
-        fillBorderedPanel(graphics, left, top, panelWidth, panelHeight, 0xD9141C1A, 0xFF5A7567);
-        graphics.drawCenteredString(font, "ПРЕДУПРЕЖДЕНИЕ О БИОВЫБРОСЕ", screenWidth / 2, top + 8, 0xFFE1F1E8);
-        graphics.drawCenteredString(
-                font,
-                "Биовыброс через: " + formatTicks(ClientVibrosData.remainingTicks()),
-                screenWidth / 2,
-                top + 25,
-                ClientVibrosData.remainingTicks() <= 200 ? 0xFFFFC95C : 0xFF86E36D
-        );
+        float eased = easeOutCubic(warningPanelProgress);
+        int left = Math.round(-panelWidth - 7 + (panelWidth + 7) * eased);
+        int top = (graphics.guiHeight() - panelHeight) / 2;
 
-        int barLeft = left + 14;
-        int barTop = top + 43;
-        int barWidth = panelWidth - 28;
-        int barHeight = 10;
-        graphics.fill(barLeft - 2, barTop - 2, barLeft + barWidth + 2, barTop + barHeight + 2, 0xFF28322E);
+        int pulse = ClientVibrosData.remainingTicks() <= 200
+                ? (int) (28.0F + 22.0F * (0.5F + 0.5F * Mth.sin(clientTicks * 0.30F)))
+                : 18;
+        int accentGreen = Math.min(255, 0x9B + pulse);
+        int accent = 0xFF000000 | (0x5F << 16) | (accentGreen << 8) | 0x58;
 
-        float remainingFraction = ClientVibrosData.remainingFraction();
-        int segments = 5;
+        // Мягкая тень и двухслойная рамка дают панели глубину без текстуры.
+        graphics.fill(left + 5, top + 5, left + panelWidth + 5, top + panelHeight + 5, 0x70000000);
+        graphics.fill(left, top, left + panelWidth, top + panelHeight, 0xEA111918);
+        drawBorder(graphics, left, top, panelWidth, panelHeight, 0xFF344742);
+        drawBorder(graphics, left + 3, top + 3, panelWidth - 6, panelHeight - 6, 0xFF1E2A27);
+
+        graphics.drawString(font, "ПРЕДУПРЕЖДЕНИЕ О ВЫБРОСЕ", left + 17, top + 12, 0xFFE4ECE8, false);
+
+        int meterLeft = left + 15;
+        int meterTop = top + 34;
+        int meterWidth = panelWidth - 30;
+        int meterHeight = 38;
+        graphics.fill(meterLeft, meterTop, meterLeft + meterWidth, meterTop + meterHeight, 0xE72A302E);
+        drawBorder(graphics, meterLeft, meterTop, meterWidth, meterHeight, 0xFF6B716E);
+        graphics.fill(meterLeft + 3, meterTop + 3, meterLeft + meterWidth - 3, meterTop + 4, 0xFF969B98);
+
+        graphics.drawString(font, "Биовыброс через:", meterLeft + 11, meterTop + 9, 0xFFD7DDDA, false);
+        String timer = formatTicks(ClientVibrosData.remainingTicks());
+        int timerColor = ClientVibrosData.remainingTicks() <= 200 ? 0xFFFFC95C : 0xFF86D06C;
+        graphics.drawString(font, timer, meterLeft + 117, meterTop + 9, timerColor, false);
+
+        int barLeft = meterLeft + 11;
+        int barTop = meterTop + 24;
+        int barWidth = meterWidth - 22;
+        int barHeight = 8;
+        int segments = 6;
         int gap = 4;
         int segmentWidth = (barWidth - gap * (segments - 1)) / segments;
-        int litSegments = Mth.ceil(remainingFraction * segments);
+        float scaled = Mth.clamp(warningBarFraction, 0.0F, 1.0F) * segments;
 
         for (int i = 0; i < segments; i++) {
             int x1 = barLeft + i * (segmentWidth + gap);
             int x2 = x1 + segmentWidth;
-            graphics.fill(x1, barTop, x2, barTop + barHeight, i < litSegments ? 0xFF69C94D : 0xFF202925);
+            graphics.fill(x1, barTop, x2, barTop + barHeight, 0xFF151B19);
+
+            float localFill = Mth.clamp(scaled - i, 0.0F, 1.0F);
+            int fillWidth = Math.round(segmentWidth * localFill);
+            if (fillWidth > 0) {
+                graphics.fill(x1, barTop, x1 + fillWidth, barTop + barHeight, accent);
+                graphics.fill(x1 + 1, barTop + 1, x1 + Math.max(1, fillWidth - 1), barTop + 3, 0x606FEA62);
+            }
         }
     }
 
@@ -212,10 +267,32 @@ public final class VibrosClientEffects {
             int borderColor
     ) {
         graphics.fill(left, top, left + width, top + height, backgroundColor);
-        graphics.fill(left, top, left + width, top + 1, borderColor);
-        graphics.fill(left, top + height - 1, left + width, top + height, borderColor);
-        graphics.fill(left, top, left + 1, top + height, borderColor);
-        graphics.fill(left + width - 1, top, left + width, top + height, borderColor);
+        drawBorder(graphics, left, top, width, height, borderColor);
+    }
+
+    private static void drawBorder(
+            GuiGraphics graphics,
+            int left,
+            int top,
+            int width,
+            int height,
+            int color
+    ) {
+        graphics.fill(left, top, left + width, top + 1, color);
+        graphics.fill(left, top + height - 1, left + width, top + height, color);
+        graphics.fill(left, top, left + 1, top + height, color);
+        graphics.fill(left + width - 1, top, left + width, top + height, color);
+    }
+
+    private static float approach(float current, float target, float speed) {
+        float next = current + (target - current) * speed;
+        return Math.abs(target - next) < 0.0005F ? target : next;
+    }
+
+    private static float easeOutCubic(float value) {
+        float clamped = Mth.clamp(value, 0.0F, 1.0F);
+        float inverse = 1.0F - clamped;
+        return 1.0F - inverse * inverse * inverse;
     }
 
     private static String formatTicks(int ticks) {

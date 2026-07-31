@@ -19,9 +19,24 @@ public final class ClientVibrosData {
     }
 
     public static void update(int newPhase, int newRemainingTicks, int newTotalTicks, boolean newAutomaticEvents) {
+        int sanitizedRemaining = Math.max(0, newRemainingTicks);
+        int sanitizedTotal = Math.max(0, newTotalTicks);
+
+        // Сервер присылает контрольное состояние раз в секунду, а клиент между
+        // пакетами сам уменьшает таймер. При сетевой задержке пакет может быть на
+        // несколько тиков «старше» клиентского значения. Не позволяем такому
+        // пакету визуально откатывать таймер и восстанавливать прогресс-бар.
+        boolean sameTimedPhase = phase == newPhase
+                && newPhase != VibrosEventHandler.PHASE_IDLE
+                && totalTicks == sanitizedTotal;
+
         phase = newPhase;
-        remainingTicks = Math.max(0, newRemainingTicks);
-        totalTicks = Math.max(0, newTotalTicks);
+        if (sameTimedPhase) {
+            remainingTicks = Math.min(remainingTicks, sanitizedRemaining);
+        } else {
+            remainingTicks = sanitizedRemaining;
+            totalTicks = sanitizedTotal;
+        }
         automaticEvents = newAutomaticEvents;
     }
 
