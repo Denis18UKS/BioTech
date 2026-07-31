@@ -3,5 +3,6 @@
   "key.biotech.toggle_vibros_shader": "Тестовый шейдер биовыброса",
   "subtitle.biotech.vibros_flash": "В тучах биовыброса вспыхивает энергия",
   "subtitle.biotech.vibros_rumble": "Тучи биовыброса грохочут",
-  "death.attack.biovibros": "%1$s был убит выбросом"
+  "death.attack.biovibros": "%1$s был убит выбросом",
+  "key.biotech.toggle_vibros_noise": "Переключить шум шейдера БВ"
 }
