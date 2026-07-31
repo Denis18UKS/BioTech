@@ -15,7 +15,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 
-/** Клиентские частицы, объёмный туман, дрожь камеры и HUD биовыброса. */
+/** Клиентские частицы, атмосфера, дрожь камеры и компактный HUD биовыброса. */
 @EventBusSubscriber(modid = BioTech.MODID, value = Dist.CLIENT)
 public final class VibrosClientEffects {
     private static long clientTicks;
@@ -47,38 +47,40 @@ public final class VibrosClientEffects {
         float dissolve = VibrosShaderManager.currentDissolveProgress();
         float immersion = cloudImmersion((float) minecraft.gameRenderer.getMainCamera().getPosition().y, storm);
 
-        if (immersion > 0.08F && clientTicks % 2L == 0L) {
-            int localCount = Math.max(1, Math.round(immersion * (storm > 0.25F ? 5.0F : 3.0F)));
+        // Частицы внутри слоя появляются только высоко в самих тучах. На земле
+        // больше нет ощущения, будто облачная масса опустилась прямо к игроку.
+        if (immersion > 0.08F && clientTicks % 3L == 0L) {
+            int localCount = Math.max(1, Math.round(immersion * (storm > 0.25F ? 3.0F : 2.0F)));
             for (int i = 0; i < localCount; i++) {
-                double x = minecraft.player.getX() + (minecraft.level.random.nextDouble() - 0.5D) * 11.0D;
-                double y = minecraft.player.getEyeY() + (minecraft.level.random.nextDouble() - 0.5D) * 6.0D;
-                double z = minecraft.player.getZ() + (minecraft.level.random.nextDouble() - 0.5D) * 11.0D;
+                double x = minecraft.player.getX() + (minecraft.level.random.nextDouble() - 0.5D) * 10.0D;
+                double y = minecraft.player.getEyeY() + (minecraft.level.random.nextDouble() - 0.5D) * 5.0D;
+                double z = minecraft.player.getZ() + (minecraft.level.random.nextDouble() - 0.5D) * 10.0D;
 
                 minecraft.level.addParticle(
                         storm > 0.25F ? ParticleTypes.WARPED_SPORE : ParticleTypes.CLOUD,
                         x, y, z,
-                        (minecraft.level.random.nextDouble() - 0.5D) * 0.008D,
-                        -0.001D,
-                        (minecraft.level.random.nextDouble() - 0.5D) * 0.008D
+                        (minecraft.level.random.nextDouble() - 0.5D) * 0.006D,
+                        -0.0008D,
+                        (minecraft.level.random.nextDouble() - 0.5D) * 0.006D
                 );
             }
         }
 
-        if (storm < 0.20F || clientTicks % 4L != 0L) {
+        if (storm < 0.20F || clientTicks % 5L != 0L) {
             return;
         }
 
         int count = ClientVibrosData.isActive() ? 2 : 1;
         for (int i = 0; i < count; i++) {
             double x = minecraft.player.getX() + (minecraft.level.random.nextDouble() - 0.5D) * 25.0D;
-            double y = minecraft.player.getY() + 2.0D + minecraft.level.random.nextDouble() * 11.0D;
+            double y = minecraft.player.getY() + 3.0D + minecraft.level.random.nextDouble() * 12.0D;
             double z = minecraft.player.getZ() + (minecraft.level.random.nextDouble() - 0.5D) * 25.0D;
 
             minecraft.level.addParticle(
                     dissolve > 0.05F ? ParticleTypes.GLOW : ParticleTypes.WARPED_SPORE,
                     x, y, z,
                     0.0D,
-                    -0.001D - minecraft.level.random.nextDouble() * 0.005D,
+                    -0.001D - minecraft.level.random.nextDouble() * 0.004D,
                     0.0D
             );
         }
@@ -118,20 +120,20 @@ public final class VibrosClientEffects {
         float flash = VibrosShaderManager.currentFlashIntensity();
         float dissolveGlow = Mth.sin(VibrosShaderManager.currentDissolveProgress() * (float) Math.PI);
 
-        float stormRed = 0.012F + flash * 0.020F;
-        float stormGreen = 0.105F + pulse * 0.022F + flash * 0.185F + dissolveGlow * 0.10F;
-        float stormBlue = 0.064F + flash * 0.046F;
-        float stormAmount = Mth.clamp(storm * 0.43F, 0.0F, 0.55F);
+        float stormRed = 0.010F + flash * 0.018F;
+        float stormGreen = 0.096F + pulse * 0.020F + flash * 0.175F + dissolveGlow * 0.090F;
+        float stormBlue = 0.056F + flash * 0.040F;
+        float stormAmount = Mth.clamp(storm * 0.36F, 0.0F, 0.48F);
 
         float calmCloudRed = 0.72F;
         float calmCloudGreen = 0.76F;
         float calmCloudBlue = 0.82F;
 
-        float cloudRed = Mth.lerp(storm, calmCloudRed, 0.055F + flash * 0.035F);
-        float cloudGreen = Mth.lerp(storm, calmCloudGreen, 0.245F + flash * 0.280F);
-        float cloudBlue = Mth.lerp(storm, calmCloudBlue, 0.145F + flash * 0.070F);
+        float cloudRed = Mth.lerp(storm, calmCloudRed, 0.050F + flash * 0.030F);
+        float cloudGreen = Mth.lerp(storm, calmCloudGreen, 0.235F + flash * 0.260F);
+        float cloudBlue = Mth.lerp(storm, calmCloudBlue, 0.135F + flash * 0.060F);
 
-        float cloudAmount = Mth.clamp(immersion * 0.86F, 0.0F, 0.90F);
+        float cloudAmount = Mth.clamp(immersion * 0.82F, 0.0F, 0.86F);
 
         float red = Mth.lerp(stormAmount, event.getRed(), stormRed);
         float green = Mth.lerp(stormAmount, event.getGreen(), stormGreen);
@@ -154,9 +156,9 @@ public final class VibrosClientEffects {
             return;
         }
 
-        float targetNear = Mth.lerp(storm, 4.0F, 1.2F);
-        float targetFar = Mth.lerp(storm, 58.0F, 24.0F);
-        float amount = Mth.clamp(immersion * 0.92F, 0.0F, 0.96F);
+        float targetNear = Mth.lerp(storm, 5.0F, 1.8F);
+        float targetFar = Mth.lerp(storm, 68.0F, 32.0F);
+        float amount = Mth.clamp(immersion * 0.88F, 0.0F, 0.92F);
 
         event.setNearPlaneDistance(Mth.lerp(amount, event.getNearPlaneDistance(), targetNear));
         event.setFarPlaneDistance(Mth.lerp(amount, event.getFarPlaneDistance(), targetFar));
@@ -169,13 +171,13 @@ public final class VibrosClientEffects {
         float storm = VibrosShaderManager.currentStormStrength();
         float immersion = cloudImmersion((float) event.getCamera().getPosition().y, storm);
 
-        float activeRumble = ClientVibrosData.isActive() ? 0.24F : 0.0F;
-        float dissipatingRumble = ClientVibrosData.isDissipating() ? (1.0F - dissolve) * 0.18F : 0.0F;
-        float cloudTurbulence = immersion * storm * 0.20F;
+        float activeRumble = ClientVibrosData.isActive() ? 0.20F : 0.0F;
+        float dissipatingRumble = ClientVibrosData.isDissipating() ? (1.0F - dissolve) * 0.15F : 0.0F;
+        float cloudTurbulence = immersion * storm * 0.16F;
         float strength = Mth.clamp(
                 countdown + activeRumble + dissipatingRumble + cloudTurbulence,
                 0.0F,
-                1.25F
+                1.10F
         );
 
         if (strength <= 0.001F) {
@@ -186,9 +188,9 @@ public final class VibrosClientEffects {
         float low = Mth.sin(time * 0.105F) + Mth.sin(time * 0.041F + 1.7F) * 0.55F;
         float fine = Mth.sin(time * 0.37F + 0.4F) * (countdown + cloudTurbulence);
 
-        event.setRoll(event.getRoll() + (low * 0.28F + fine * 0.11F) * strength);
-        event.setPitch(event.getPitch() + Mth.sin(time * 0.071F) * 0.15F * strength);
-        event.setYaw(event.getYaw() + Mth.cos(time * 0.057F) * 0.13F * strength);
+        event.setRoll(event.getRoll() + (low * 0.23F + fine * 0.09F) * strength);
+        event.setPitch(event.getPitch() + Mth.sin(time * 0.071F) * 0.12F * strength);
+        event.setYaw(event.getYaw() + Mth.cos(time * 0.057F) * 0.10F * strength);
     }
 
     @SubscribeEvent
@@ -202,35 +204,43 @@ public final class VibrosClientEffects {
     }
 
     private static void renderUnifiedPanel(GuiGraphics graphics, Font font) {
-        int panelWidth = Math.min(218, graphics.guiWidth() - 12);
-        int panelHeight = 48;
+        // Панель закреплена в левом верхнем углу и занимает заметно меньше места,
+        // чем прежняя центральная версия.
+        int panelWidth = Math.min(184, graphics.guiWidth() - 16);
+        int panelHeight = 38;
+        int targetLeft = 8;
 
         float eased = easeOutCubic(panelProgress);
-        int left = Math.round(-panelWidth - 6 + (panelWidth + 12) * eased);
-        int top = (graphics.guiHeight() - panelHeight) / 2;
+        int left = Math.round(-panelWidth - 6 + (panelWidth + targetLeft + 6) * eased);
+        int top = 8;
 
         int remaining = ClientVibrosData.remainingTicks();
-        String text = ClientVibrosData.isWarning()
-                ? "Биовыброс через: " + formatTicks(remaining)
-                : "Биовыброс закончится через: " + formatTicks(remaining);
+        String text;
+        if (ClientVibrosData.isWarning()) {
+            text = "Биовыброс через: " + formatTicks(remaining);
+        } else if (ClientVibrosData.isDissipating()) {
+            text = "Рассеивание БВ: " + formatTicks(remaining);
+        } else {
+            text = "До конца БВ: " + formatTicks(remaining);
+        }
 
         int accent = ClientVibrosData.isDissipating() ? 0xFF9CFF82 : 0xFF6BCB5E;
-        int background = 0xE8272D2A;
+        int background = 0xDC272D2A;
 
-        graphics.fill(left + 3, top + 3, left + panelWidth + 3, top + panelHeight + 3, 0x65000000);
+        graphics.fill(left + 3, top + 3, left + panelWidth + 3, top + panelHeight + 3, 0x55000000);
         graphics.fill(left, top, left + panelWidth, top + panelHeight, background);
         drawBorder(graphics, left, top, panelWidth, panelHeight, 0xFF777D7A);
         graphics.fill(left + 5, top + 5, left + panelWidth - 5, top + 6, 0xFF9A9F9C);
 
-        graphics.drawString(font, text, left + 10, top + 13, 0xFFE1E6E3, false);
+        graphics.drawString(font, text, left + 9, top + 10, 0xFFE1E6E3, false);
 
-        int barLeft = left + 10;
-        int barTop = top + 31;
-        int barWidth = panelWidth - 20;
-        int barHeight = 8;
+        int barLeft = left + 9;
+        int barTop = top + 25;
+        int barWidth = panelWidth - 18;
+        int barHeight = 7;
         int segments = 6;
-        int gap = 4;
-        int segmentWidth = (barWidth - gap * (segments - 1)) / segments;
+        int gap = 3;
+        int segmentWidth = Math.max(2, (barWidth - gap * (segments - 1)) / segments);
         float scaled = Mth.clamp(displayedBarFraction, 0.0F, 1.0F) * segments;
 
         for (int i = 0; i < segments; i++) {
@@ -247,11 +257,14 @@ public final class VibrosClientEffects {
         }
     }
 
+    /**
+     * Облачное ядро теперь находится существенно выше максимальной высоты
+     * обычного строительства. С земли в слой нельзя войти случайно.
+     */
     private static float cloudImmersion(float worldY, float storm) {
-        float calmLayer = band(worldY, 118.0F, 150.0F, 232.0F, 278.0F);
-        float stormLower = band(worldY, 82.0F, 126.0F, 286.0F, 348.0F);
-        float stormUpper = band(worldY, 224.0F, 272.0F, 430.0F, 520.0F) * 0.82F;
-        return Mth.lerp(Mth.clamp(storm, 0.0F, 1.0F), calmLayer, Math.max(stormLower, stormUpper));
+        float calmLayer = band(worldY, 238.0F, 276.0F, 372.0F, 430.0F);
+        float stormLayer = band(worldY, 296.0F, 338.0F, 510.0F, 590.0F);
+        return Mth.lerp(Mth.clamp(storm, 0.0F, 1.0F), calmLayer, stormLayer);
     }
 
     private static float band(float value, float bottom0, float bottom1, float top0, float top1) {
