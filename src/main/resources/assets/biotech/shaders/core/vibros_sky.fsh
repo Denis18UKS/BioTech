@@ -17,6 +17,7 @@ uniform float FlashIntensity1;
 uniform float FlashIntensity2;
 uniform float FlashIntensity3;
 uniform float DayFactor;
+uniform float NoiseAmount;
 
 in vec2 screenPosition;
 out vec4 fragColor;
@@ -152,7 +153,9 @@ float cloudDensity(
 
     float broad = fbm3(warped * 0.60 + vec3(3.2, 1.7, 8.4));
     float body = fbm3(warped * 1.13 + vec3(11.0, -3.0, 5.0));
-    float detail = noise3(warped * 4.00 + vec3(-7.0, Time * 0.0046, 12.0));
+    float detailSmooth = noise3(warped * 1.85 + vec3(-7.0, Time * 0.0022, 12.0));
+    float detailFine = noise3(warped * 3.20 + vec3(-7.0, Time * 0.0030, 12.0));
+    float detail = mix(detailSmooth, detailFine, clamp(NoiseAmount, 0.0, 1.0));
 
     float threshold = 0.612
             - StormStrength * 0.235
@@ -160,8 +163,9 @@ float cloudDensity(
             - WarningProgress * 0.030;
 
     float billow = 1.0 - abs(heightFraction * 2.0 - 1.0);
-    float raw = broad * 0.51 + body * 0.37 + detail * 0.09 + billow * 0.105;
-    float density = smoothstep(threshold, threshold + 0.235, raw) * verticalMask;
+    float detailWeight = 0.035 + clamp(NoiseAmount, 0.0, 1.0) * 0.035;
+    float raw = broad * 0.53 + body * 0.39 + detail * detailWeight + billow * 0.105;
+    float density = smoothstep(threshold, threshold + 0.265, raw) * verticalMask;
 
     density *= 1.0 - smoothstep(1030.0, RAY_END, travel);
 
@@ -248,7 +252,9 @@ void main() {
     color += vec3(0.018, 0.240, 0.082) * skyGlow;
 
     float stepLength = (RAY_END - RAY_START) / float(CLOUD_STEPS);
-    float jitter = hash21(screenPosition * 719.31 + vec2(Time * 0.013, -Time * 0.009));
+    vec2 stablePixel = floor(gl_FragCoord.xy * 0.5);
+    float stableNoise = hash21(stablePixel + vec2(17.0, 53.0)) - 0.5;
+    float jitter = 0.5 + stableNoise * clamp(NoiseAmount, 0.0, 1.0);
     float travel = RAY_START + stepLength * jitter;
 
     vec3 accumulatedColor = vec3(0.0);
