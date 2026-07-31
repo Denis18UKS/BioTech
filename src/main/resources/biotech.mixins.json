@@ -10,7 +10,6 @@
     "VibrosRainDensityMixin",
     "VibrosRainTextureMixin",
     "VibrosVanillaCloudMixin",
-    "ShaderNoiseMixin",
     "DnaInjectorModelMixin",
     "GreenLightningMixin"
   ],
