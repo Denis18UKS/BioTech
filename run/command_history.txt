@@ -1,18 +1,3 @@
-/weather clear
-/time set day
-/vibros on
-/vibros off
-/weather clear
-/time set day
-/vibros on
-/vibros off
-/weather clear
-/time set day
-/izm info
-/izm sync Zunserz 10
-/izm converge
-/izm info
-/izm sync Zunserz 10
 /izm touch on
 /izm touch off
 /izm touch on
@@ -48,3 +33,18 @@
 /vibros status
 /vibros now
 /vibros off
+/vibros status
+/vibros schedule 2
+/vibros status
+/gamerule keepInventory true
+/kill
+/give Zunserz minecraft:command_block
+/gamerule commandBlockOutput false
+/vibros status
+/vibros off
+/weather clear
+/time set day
+/time set midnight
+/time set day
+/time set midnight
+/time set day

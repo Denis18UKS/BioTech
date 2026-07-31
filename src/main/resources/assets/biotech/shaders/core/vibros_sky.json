@@ -1,0 +1,62 @@
+{
+  "vertex": "biotech:vibros_sky",
+  "fragment": "biotech:vibros_sky",
+  "attributes": [
+    "Position"
+  ],
+  "samplers": [],
+  "uniforms": [
+    {
+      "name": "InvViewMat",
+      "type": "matrix4x4",
+      "count": 16,
+      "values": [
+        1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0
+      ]
+    },
+    {
+      "name": "InvProjMat",
+      "type": "matrix4x4",
+      "count": 16,
+      "values": [
+        1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0
+      ]
+    },
+    {
+      "name": "CameraPosition",
+      "type": "float",
+      "count": 3,
+      "values": [0.0, 0.0, 0.0]
+    },
+    {
+      "name": "FlashPosition",
+      "type": "float",
+      "count": 3,
+      "values": [0.0, 260.0, 0.0]
+    },
+    {
+      "name": "Time",
+      "type": "float",
+      "count": 1,
+      "values": [0.0]
+    },
+    {
+      "name": "Intensity",
+      "type": "float",
+      "count": 1,
+      "values": [0.0]
+    },
+    {
+      "name": "FlashIntensity",
+      "type": "float",
+      "count": 1,
+      "values": [0.0]
+    }
+  ]
+}

@@ -1,5 +1,9 @@
 {
   "itemGroup.newmode": "Example Mod Tab",
   "block.newmode.example_block": "Example Block",
-  "item.newmode.example_item": "Example Item"
+  "item.newmode.example_item": "Example Item",
+  "key.categories.biotech": "BioTech",
+  "key.biotech.toggle_vibros_shader": "Toggle biovibros shader preview",
+  "subtitle.biotech.vibros_flash": "Biovibros energy flashes",
+  "subtitle.biotech.vibros_rumble": "Biovibros clouds rumble"
 }

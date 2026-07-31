@@ -229,7 +229,6 @@ public class VibrosEventHandler {
 
         if (exposedToSky) {
             player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 70, 0, false, false, true));
-            player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 50, 0, false, false, true));
             player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 70, 0, false, false, true));
 
             if (elapsedTicks % 40 == 0 && !player.getAbilities().invulnerable) {

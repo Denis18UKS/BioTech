@@ -1,0 +1,35 @@
+{
+  "vibros_flash": {
+    "subtitle": "subtitle.biotech.vibros_flash",
+    "sounds": [
+      {
+        "name": "biotech:vibros/flash_1",
+        "volume": 0.92,
+        "pitch": 1.0,
+        "weight": 3,
+        "attenuation_distance": 16,
+        "preload": true
+      },
+      {
+        "name": "biotech:vibros/flash_2",
+        "volume": 0.88,
+        "pitch": 0.96,
+        "weight": 2,
+        "attenuation_distance": 16,
+        "preload": true
+      }
+    ]
+  },
+  "vibros_rumble": {
+    "subtitle": "subtitle.biotech.vibros_rumble",
+    "sounds": [
+      {
+        "name": "biotech:vibros/rumble",
+        "volume": 0.82,
+        "pitch": 0.92,
+        "attenuation_distance": 16,
+        "preload": true
+      }
+    ]
+  }
+}

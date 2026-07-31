@@ -1,10 +1,11 @@
 package neo.z_mods.biotech;
 
+import com.mojang.logging.LogUtils;
+import neo.z_mods.biotech.sound.ModSounds;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
-import com.mojang.logging.LogUtils;
 
 @Mod(BioTech.MODID)
 public class BioTech {
@@ -14,11 +15,14 @@ public class BioTech {
 
     public BioTech(IEventBus modEventBus) {
         LOGGER.info("BioTech mod loading...");
-        
+
+        // Звуки биовыброса регистрируются вместе с ресурсами самого мода.
+        ModSounds.SOUND_EVENTS.register(modEventBus);
+
         NeoForge.EVENT_BUS.register(new VibrosEventHandler());
         NeoForge.EVENT_BUS.register(new DimensionSystemHandler());
         NeoForge.EVENT_BUS.register(new GhostSyncHandler());
-        
+
         LOGGER.info("BioTech mod loaded!");
     }
 }

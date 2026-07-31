@@ -7,7 +7,9 @@
     "client": [
         "PlayerRenderMixin",
         "VibrosAtmosphereMixin",
-        "VibrosRainTextureMixin"
+        "VibrosRainDensityMixin",
+        "VibrosRainTextureMixin",
+        "VibrosVanillaCloudMixin"
     ],
     "injectors": {
         "defaultRequire": 1

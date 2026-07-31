@@ -7,10 +7,21 @@
   },
   "minecraft:adventure/adventuring_time": {
     "criteria": {
+      "minecraft:cold_ocean": "2026-07-31 16:28:08 +0500",
       "minecraft:beach": "2026-07-08 01:57:46 +0500",
       "minecraft:old_growth_pine_taiga": "2026-07-08 01:56:24 +0500",
+      "minecraft:forest": "2026-07-31 16:25:26 +0500",
       "minecraft:taiga": "2026-07-08 01:56:51 +0500",
-      "minecraft:stony_shore": "2026-07-08 01:56:18 +0500"
+      "minecraft:deep_ocean": "2026-07-31 16:36:19 +0500",
+      "minecraft:river": "2026-07-31 16:30:09 +0500",
+      "minecraft:stony_shore": "2026-07-08 01:56:18 +0500",
+      "minecraft:snowy_plains": "2026-07-31 16:31:13 +0500",
+      "minecraft:deep_cold_ocean": "2026-07-31 16:34:31 +0500",
+      "minecraft:frozen_ocean": "2026-07-31 16:30:43 +0500",
+      "minecraft:frozen_river": "2026-07-31 16:30:10 +0500",
+      "minecraft:ocean": "2026-07-31 16:36:16 +0500",
+      "minecraft:birch_forest": "2026-07-31 16:38:00 +0500",
+      "minecraft:snowy_beach": "2026-07-31 16:30:29 +0500"
     },
     "done": false
   },
@@ -77,6 +88,90 @@
   "minecraft:recipes/combat/netherite_helmet_smithing": {
     "criteria": {
       "has_netherite_ingot": "2026-07-08 02:02:29 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/transportation/mangrove_boat": {
+    "criteria": {
+      "in_water": "2026-07-31 16:31:58 +0500"
+    },
+    "done": true
+  },
+  "minecraft:story/obtain_armor": {
+    "criteria": {
+      "iron_helmet": "2026-07-31 16:31:03 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/misc/iron_nugget_from_smelting": {
+    "criteria": {
+      "has_iron_sword": "2026-07-31 16:31:02 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/transportation/acacia_boat": {
+    "criteria": {
+      "in_water": "2026-07-31 16:31:58 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/transportation/cherry_boat": {
+    "criteria": {
+      "in_water": "2026-07-31 16:31:58 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/misc/iron_nugget_from_blasting": {
+    "criteria": {
+      "has_iron_sword": "2026-07-31 16:31:02 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/transportation/bamboo_raft": {
+    "criteria": {
+      "in_water": "2026-07-31 16:31:58 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/transportation/spruce_boat": {
+    "criteria": {
+      "in_water": "2026-07-31 16:31:58 +0500"
+    },
+    "done": true
+  },
+  "minecraft:husbandry/balanced_diet": {
+    "criteria": {
+      "cooked_porkchop": "2026-07-31 16:31:16 +0500"
+    },
+    "done": false
+  },
+  "minecraft:husbandry/root": {
+    "criteria": {
+      "consumed_item": "2026-07-31 16:31:16 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/transportation/birch_boat": {
+    "criteria": {
+      "in_water": "2026-07-31 16:31:58 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/transportation/oak_boat": {
+    "criteria": {
+      "in_water": "2026-07-31 16:31:58 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/transportation/jungle_boat": {
+    "criteria": {
+      "in_water": "2026-07-31 16:31:58 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/transportation/dark_oak_boat": {
+    "criteria": {
+      "in_water": "2026-07-31 16:31:58 +0500"
     },
     "done": true
   },
