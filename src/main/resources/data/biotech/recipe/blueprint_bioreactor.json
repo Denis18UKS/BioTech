@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "biotech:bioreactor"
+    }
+  ],
+  "result": {
+    "id": "biotech:blueprint_bioreactor",
+    "count": 1
+  }
+}

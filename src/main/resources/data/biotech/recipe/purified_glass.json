@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "GGG",
+    "GSG",
+    "GGG"
+  ],
+  "key": {
+    "G": {
+      "item": "minecraft:glass"
+    },
+    "S": {
+      "item": "biotech:stabilizing_solution"
+    }
+  },
+  "result": {
+    "id": "biotech:purified_glass",
+    "count": 8
+  }
+}

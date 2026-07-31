@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CIC",
+    "IGI",
+    "CIC"
+  ],
+  "key": {
+    "C": {
+      "item": "biotech:genetic_chip"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "G": {
+      "item": "biotech:bio_gel"
+    }
+  },
+  "result": {
+    "id": "biotech:bio_distributor",
+    "count": 1
+  }
+}

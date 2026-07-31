@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CCC",
+    "CCC",
+    "CCC"
+  ],
+  "key": {
+    "C": {
+      "item": "minecraft:coal"
+    }
+  },
+  "result": {
+    "id": "biotech:carbon_block",
+    "count": 1
+  }
+}

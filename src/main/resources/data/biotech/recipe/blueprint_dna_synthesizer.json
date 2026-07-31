@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "biotech:dna_synthesizer"
+    }
+  ],
+  "result": {
+    "id": "biotech:blueprint_dna_synthesizer",
+    "count": 1
+  }
+}

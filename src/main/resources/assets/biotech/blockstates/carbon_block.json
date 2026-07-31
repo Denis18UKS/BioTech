@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "biotech:block/carbon_block"
+    }
+  }
+}

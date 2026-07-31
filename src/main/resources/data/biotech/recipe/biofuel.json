@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "biotech:biomass"
+    },
+    {
+      "item": "biotech:bio_gel"
+    },
+    {
+      "item": "minecraft:bucket"
+    }
+  ],
+  "result": {
+    "id": "biotech:biofuel",
+    "count": 1
+  }
+}

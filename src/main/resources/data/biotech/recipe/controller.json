@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CIC",
+    "IGI",
+    "CIC"
+  ],
+  "key": {
+    "C": {
+      "item": "minecraft:redstone"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "G": {
+      "item": "biotech:genetic_chip"
+    }
+  },
+  "result": {
+    "id": "biotech:controller",
+    "count": 1
+  }
+}

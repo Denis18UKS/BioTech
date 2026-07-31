@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CIC",
+    "IGI",
+    "CIC"
+  ],
+  "key": {
+    "C": {
+      "item": "biotech:energy_crystal"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "G": {
+      "item": "minecraft:blue_ice"
+    }
+  },
+  "result": {
+    "id": "biotech:cooler",
+    "count": 1
+  }
+}

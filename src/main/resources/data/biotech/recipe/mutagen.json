@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "biotech:animal_cell"
+    },
+    {
+      "item": "minecraft:fermented_spider_eye"
+    },
+    {
+      "item": "biotech:bio_gel"
+    }
+  ],
+  "result": {
+    "id": "biotech:mutagen",
+    "count": 1
+  }
+}

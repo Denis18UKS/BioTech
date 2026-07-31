@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "A A",
+    "AAA",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "item": "biotech:reinforced_alloy"
+    }
+  },
+  "result": {
+    "id": "biotech:protective_chestplate",
+    "count": 1
+  }
+}

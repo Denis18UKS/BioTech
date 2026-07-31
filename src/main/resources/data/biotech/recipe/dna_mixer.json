@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CIC",
+    "IGI",
+    "CIC"
+  ],
+  "key": {
+    "C": {
+      "item": "biotech:reinforced_glass"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "G": {
+      "item": "biotech:mutagen"
+    }
+  },
+  "result": {
+    "id": "biotech:dna_mixer",
+    "count": 1
+  }
+}

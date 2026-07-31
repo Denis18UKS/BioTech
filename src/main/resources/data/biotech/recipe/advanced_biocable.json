@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "MMM",
+    "CCC",
+    "MMM"
+  ],
+  "key": {
+    "M": {
+      "item": "minecraft:gold_ingot"
+    },
+    "C": {
+      "item": "biotech:energy_crystal"
+    }
+  },
+  "result": {
+    "id": "biotech:advanced_biocable",
+    "count": 8
+  }
+}

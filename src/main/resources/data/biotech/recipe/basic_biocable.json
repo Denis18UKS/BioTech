@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "MMM",
+    "CCC",
+    "MMM"
+  ],
+  "key": {
+    "M": {
+      "item": "minecraft:copper_ingot"
+    },
+    "C": {
+      "item": "biotech:bio_gel"
+    }
+  },
+  "result": {
+    "id": "biotech:basic_biocable",
+    "count": 8
+  }
+}

@@ -1,35 +1,3 @@
-/izm touch off
-/izm info
-/time set day
-/izm touch on
-/gamemode adventure
-/gamemode adventure @a
-/izm touch off
-/izm info
-/izm sync Zuns
-/izm sync Zuns 10
-/izm sync Zunserz
-/izm sync Zunserz 5
-/izm info
-/vibros status
-/vibros now
-/vibros off
-/vibros status
-/vibros schedule 2
-/vibros status
-/gamerule keepInventory true
-/kill
-/give Zunserz minecraft:command_block
-/gamerule commandBlockOutput false
-/vibros status
-/vibros off
-/weather clear
-/time set day
-/time set midnight
-/time set day
-/time set midnight
-/time set day
-/time set midnight
 /time set day
 /vibros status
 /time set night
@@ -47,4 +15,36 @@
 /vibros status
 /time set day
 /weather clear
+/time set day
+/vibros status
+/vibros now
+/vibros off
+/vibros auto
+/vibros status
+/vibros schedule 10
+/gamerule keepInventory true
+/locate structure minecraft:village_plains
+/tp @s 320 ~ -848
+/vibros off
+/weather clear
+/time set day
+/tp ~ 1000 ~
+/effect give Zunserz minecraft:slow_falling infinite 255 true
+/tp ~ 1000 ~
+/effect clear
+/tp ~ 1000 ~
+/vibros status
+/clear
+/locate structure minecraft:village_taiga
+/locate structure minecraft:village_plains
+/tp @s 320 ~ -848
+/vibros status
+/vibros schedule 2
+/time set day
+/tp ~ 10000 ~
+/tp ~ 100 ~
+/tp ~ 300 ~
+/gamerule keepInventory true
+/vibros status
+/vibros on
 /time set day

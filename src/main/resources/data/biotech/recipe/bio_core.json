@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "BEB",
+    "EGE",
+    "BEB"
+  ],
+  "key": {
+    "B": {
+      "item": "biotech:biomass"
+    },
+    "E": {
+      "item": "biotech:energy_crystal"
+    },
+    "G": {
+      "item": "biotech:genetic_chip"
+    }
+  },
+  "result": {
+    "id": "biotech:bio_core",
+    "count": 1
+  }
+}

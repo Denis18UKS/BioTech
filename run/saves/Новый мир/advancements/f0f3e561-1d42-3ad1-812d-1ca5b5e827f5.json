@@ -8,6 +8,7 @@
   "minecraft:adventure/adventuring_time": {
     "criteria": {
       "minecraft:cold_ocean": "2026-07-31 16:28:08 +0500",
+      "minecraft:flower_forest": "2026-08-01 00:37:19 +0500",
       "minecraft:savanna_plateau": "2026-07-31 17:10:40 +0500",
       "minecraft:beach": "2026-07-08 01:57:46 +0500",
       "minecraft:old_growth_pine_taiga": "2026-07-08 01:56:24 +0500",
@@ -22,11 +23,14 @@
       "minecraft:frozen_ocean": "2026-07-31 16:30:43 +0500",
       "minecraft:frozen_river": "2026-07-31 16:30:10 +0500",
       "minecraft:ocean": "2026-07-31 16:36:16 +0500",
+      "minecraft:sunflower_plains": "2026-07-31 21:20:33 +0500",
+      "minecraft:grove": "2026-07-31 21:21:53 +0500",
       "minecraft:birch_forest": "2026-07-31 16:38:00 +0500",
       "minecraft:old_growth_spruce_taiga": "2026-07-31 18:20:34 +0500",
       "minecraft:snowy_beach": "2026-07-31 16:30:29 +0500",
       "minecraft:savanna": "2026-07-31 17:10:19 +0500",
-      "minecraft:plains": "2026-07-31 17:10:07 +0500"
+      "minecraft:plains": "2026-07-31 17:10:07 +0500",
+      "minecraft:jagged_peaks": "2026-07-31 21:21:54 +0500"
     },
     "done": false
   },
@@ -256,6 +260,138 @@
   "minecraft:recipes/decorations/loom": {
     "criteria": {
       "has_string": "2026-07-31 17:48:54 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/stone_bricks": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/stone_brick_slab_from_stone_stonecutting": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/stone_brick_stairs_from_stone_stonecutting": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/stone_slab_from_stone_stonecutting": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/decorations/mossy_cobblestone_wall": {
+    "criteria": {
+      "has_mossy_cobblestone": "2026-08-01 00:40:40 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/stone_bricks_from_stone_stonecutting": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/stone_slab": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/chiseled_stone_bricks_stone_from_stonecutting": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/mossy_cobblestone_slab_from_mossy_cobblestone_stonecutting": {
+    "criteria": {
+      "has_mossy_cobblestone": "2026-08-01 00:40:40 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/mossy_cobblestone_stairs_from_mossy_cobblestone_stonecutting": {
+    "criteria": {
+      "has_mossy_cobblestone": "2026-08-01 00:40:40 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/stone_stairs_from_stone_stonecutting": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/redstone/stone_button": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/decorations/stonecutter": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/redstone/stone_pressure_plate": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/food/bread": {
+    "criteria": {
+      "has_wheat": "2026-08-01 00:40:10 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/smooth_stone": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/hay_block": {
+    "criteria": {
+      "has_wheat": "2026-08-01 00:40:10 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/decorations/mossy_cobblestone_wall_from_mossy_cobblestone_stonecutting": {
+    "criteria": {
+      "has_mossy_cobblestone": "2026-08-01 00:40:40 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/mossy_cobblestone_slab": {
+    "criteria": {
+      "has_mossy_cobblestone": "2026-08-01 00:40:40 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/decorations/stone_brick_walls_from_stone_stonecutting": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/stone_stairs": {
+    "criteria": {
+      "has_stone": "2026-08-01 00:46:55 +0500"
+    },
+    "done": true
+  },
+  "minecraft:recipes/building_blocks/mossy_cobblestone_stairs": {
+    "criteria": {
+      "has_mossy_cobblestone": "2026-08-01 00:40:40 +0500"
     },
     "done": true
   },
