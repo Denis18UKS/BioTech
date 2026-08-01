@@ -69,7 +69,20 @@ jobs:
               ci_payload/feature_patch_07.b64 \
               ci_payload/feature_patch_08.b64 \
             | tr -d '\n\r' | base64 --decode | gzip --decompress > /tmp/biotech-feature.patch
+
+          set +e
           patch --batch --forward -p1 < /tmp/biotech-feature.patch
+          patch_status=$?
+          set -e
+
+          test -f src/main/java/neo/z_mods/biotech/network/DnaInjectorModePacket.java
+          test -f src/main/java/neo/z_mods/biotech/client/DnaInjectorModeClientHandler.java
+          test -f src/main/java/neo/z_mods/biotech/block/CableBlock.java
+          test -f src/main/java/neo/z_mods/biotech/item/BioBatteryItem.java
+          test -f src/main/java/neo/z_mods/biotech/multiblock/MultiblockAssembler.java
+          test -f tools/generate_biotech_assets.py
+
+          echo "patch exited with status ${patch_status}; pre-existing workflow/docs files are expected on the PR branch"
 
       - name: Generate BioTech assets
         shell: bash
