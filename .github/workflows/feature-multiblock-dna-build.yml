@@ -60,7 +60,8 @@ jobs:
               ci_payload/feature_patch_01.b64 \
               ci_payload/feature_patch_02a.b64 \
               ci_payload/feature_patch_02b.b64 \
-              ci_payload/feature_patch_02c.b64 \
+              ci_payload/feature_patch_02c1.b64 \
+              ci_payload/feature_patch_02c2.b64 \
               ci_payload/feature_patch_03.b64 \
               ci_payload/feature_patch_04.b64 \
               ci_payload/feature_patch_05.b64 \
