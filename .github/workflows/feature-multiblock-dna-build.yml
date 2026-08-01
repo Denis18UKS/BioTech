@@ -27,7 +27,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Prepare legacy package marker
+      - name: Prepare build marker
         shell: bash
         run: |
           cat > BUILD-INFO.txt <<'EOF'
@@ -71,60 +71,36 @@ jobs:
 
           echo "patch exited with status ${patch_status}; pre-existing workflow/docs files are expected on the PR branch"
 
-      - name: Repair dedicated wrench generator
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('tools/generate_biotech_assets.py')
-          text = path.read_text(encoding='utf-8')
-
-          text = text.replace(
-              '    "pocket_battery", "improved_pocket_battery", "advanced_pocket_battery", "quantum_pocket_battery",\n]',
-              '    "pocket_battery", "improved_pocket_battery", "advanced_pocket_battery", "quantum_pocket_battery",\n    "assembly_wrench",\n]'
-          )
-          text = text.replace(
-              '    "quantum_pocket_battery": (173, 73, 232, 255),\n}',
-              '    "quantum_pocket_battery": (173, 73, 232, 255),\n    "assembly_wrench": (70, 231, 151, 255),\n}'
-          )
-
-          battery = '''    if name.endswith("pocket_battery") or name == "pocket_battery":
-              d.rounded_rectangle((7, 4, 24, 28), radius=3, fill=(34, 43, 44, 255), outline=metal, width=2)
-              d.rectangle((12, 1, 19, 5), fill=(145, 157, 157, 255), outline=(54, 62, 62, 255))
-              d.rectangle((10, 9, 21, 23), fill=shade(accent, 0.38), outline=accent, width=1)
-              for y in (11, 15, 19):
-                  d.rectangle((12, y, 19, y + 2), fill=shade(accent, 1.25))
-              return img
-
-          '''
-          wrench = battery + '''    if name == "assembly_wrench":
-              d.polygon([(5, 4), (11, 5), (14, 9), (12, 13), (16, 17), (20, 13),
-                         (24, 14), (27, 20), (24, 26), (18, 28), (14, 24), (15, 20),
-                         (11, 16), (7, 18), (3, 15), (4, 10), (8, 9)],
-                        fill=(76, 88, 89, 255), outline=(18, 24, 25, 255))
-              d.line((8, 7, 24, 23), fill=(174, 188, 186, 255), width=3)
-              d.line((10, 9, 22, 21), fill=(91, 105, 104, 255), width=2)
-              d.rounded_rectangle((15, 16, 26, 28), radius=2, fill=(29, 38, 39, 255), outline=(118, 132, 130, 255))
-              d.rectangle((18, 19, 23, 25), fill=shade(accent, 0.42), outline=accent)
-              d.rectangle((19, 20, 22, 23), fill=shade(accent, 1.35))
-              d.line((5, 11, 11, 5), fill=(211, 220, 216, 255), width=2)
-              d.line((4, 14, 9, 17), fill=(45, 55, 56, 255), width=2)
-              return img
-
-          '''
-          if 'if name == "assembly_wrench":' not in text:
-              if battery not in text:
-                  raise SystemExit('Battery generator block was not found')
-              text = text.replace(battery, wrench)
-
-          path.write_text(text, encoding='utf-8')
-          PY
-
       - name: Generate BioTech assets
         shell: bash
         run: |
           python -m pip install --disable-pip-version-check pillow
+
+          # The wrench has its own dedicated pixel-art texture and is intentionally
+          # generated before the common validator runs.
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageDraw
+
+          target = Path('src/main/resources/assets/biotech/textures/item/assembly_wrench.png')
+          target.parent.mkdir(parents=True, exist_ok=True)
+          image = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+          draw = ImageDraw.Draw(image)
+          accent = (70, 231, 151, 255)
+          draw.polygon([(5, 4), (11, 5), (14, 9), (12, 13), (16, 17), (20, 13),
+                        (24, 14), (27, 20), (24, 26), (18, 28), (14, 24), (15, 20),
+                        (11, 16), (7, 18), (3, 15), (4, 10), (8, 9)],
+                       fill=(76, 88, 89, 255), outline=(18, 24, 25, 255))
+          draw.line((8, 7, 24, 23), fill=(174, 188, 186, 255), width=3)
+          draw.line((10, 9, 22, 21), fill=(91, 105, 104, 255), width=2)
+          draw.rounded_rectangle((15, 16, 26, 28), radius=2, fill=(29, 38, 39, 255), outline=(118, 132, 130, 255))
+          draw.rectangle((18, 19, 23, 25), fill=(26, 86, 59, 255), outline=accent)
+          draw.rectangle((19, 20, 22, 23), fill=(94, 255, 178, 255))
+          draw.line((5, 11, 11, 5), fill=(211, 220, 216, 255), width=2)
+          draw.line((4, 14, 9, 17), fill=(45, 55, 56, 255), width=2)
+          image.save(target, optimize=True)
+          PY
+
           python tools/generate_biotech_assets.py
 
       - name: Make Gradle wrapper executable
