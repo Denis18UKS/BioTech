@@ -61,6 +61,12 @@ jobs:
               ci_payload/feature_patch_02a.b64 \
               ci_payload/feature_patch_02b.b64 \
               ci_payload/feature_patch_02c.b64 \
+              ci_payload/feature_patch_03.b64 \
+              ci_payload/feature_patch_04.b64 \
+              ci_payload/feature_patch_05.b64 \
+              ci_payload/feature_patch_06.b64 \
+              ci_payload/feature_patch_07.b64 \
+              ci_payload/feature_patch_08.b64 \
             | tr -d '\n\r' | base64 --decode | gzip --decompress > /tmp/biotech-feature.patch
           patch --batch --forward -p1 < /tmp/biotech-feature.patch
 
