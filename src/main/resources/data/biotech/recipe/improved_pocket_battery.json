@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "AEA",
+    "EBE",
+    "AGA"
+  ],
+  "key": {
+    "A": {"item": "biotech:reinforced_alloy"},
+    "E": {"item": "biotech:energy_crystal"},
+    "B": {"item": "biotech:pocket_battery"},
+    "G": {"item": "biotech:bio_gel"}
+  },
+  "result": {"id": "biotech:improved_pocket_battery", "count": 1}
+}

@@ -20,6 +20,7 @@ public class BioTech {
 
     public BioTech(IEventBus modEventBus) {
         LOGGER.info("BioTech mod loading...");
+        DnaBlacklistConfig.load();
 
         ModContent.BLOCKS.register(modEventBus);
         ModContent.ITEMS.register(modEventBus);
@@ -32,6 +33,7 @@ public class BioTech {
         NeoForge.EVENT_BUS.register(new VibrosEventHandler());
         NeoForge.EVENT_BUS.register(new DimensionSystemHandler());
         NeoForge.EVENT_BUS.register(new GhostSyncHandler());
+        NeoForge.EVENT_BUS.register(new DnaIntegrationHandler());
 
         LOGGER.info("BioTech mod loaded!");
     }

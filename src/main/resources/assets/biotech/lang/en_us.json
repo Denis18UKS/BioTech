@@ -69,5 +69,15 @@
   "item.biotech.blueprint_bioreactor": "Blueprint: Bioreactor",
   "block.biotech.dna_cable": "DNA Cable",
   "screen.biotech.structure_ready": "Structure complete",
-  "screen.biotech.projection_active": "Projection active"
+  "screen.biotech.projection_active": "Projection active",
+  "item.biotech.assembly_wrench": "BioTech Assembly Wrench",
+  "key.biotech.open_dna_blacklist": "Open DNA exclusion list",
+  "block.biotech.formed_multiblock": "Assembled BioTech Machine",
+  "block.biotech.formed_frame": "Assembled Machine Frame",
+  "key.biotech.switch_dna_injector_mode": "Switch DNA injector mode",
+  "item.biotech.nether_adaptation_module": "Nether Adaptation Module",
+  "item.biotech.pocket_battery": "Pocket Bio Battery",
+  "item.biotech.improved_pocket_battery": "Improved Pocket Bio Battery",
+  "item.biotech.advanced_pocket_battery": "Advanced Pocket Bio Battery",
+  "item.biotech.quantum_pocket_battery": "Quantum Pocket Bio Battery"
 }

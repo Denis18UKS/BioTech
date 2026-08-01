@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "port=false": {
+      "model": "biotech:block/formed_frame"
+    },
+    "port=true": {
+      "model": "biotech:block/formed_frame"
+    }
+  }
+}

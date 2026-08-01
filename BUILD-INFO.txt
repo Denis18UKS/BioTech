@@ -1,0 +1,7 @@
+BioTech — переработка мультиблоков, энергии и ДНК
+
+Ветка: chatgpt/textures-shader-injector-fix
+Pull request: #3
+Minecraft: 1.21.1
+NeoForge: 21.1.247
+Java: 21

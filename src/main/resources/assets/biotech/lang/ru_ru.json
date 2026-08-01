@@ -66,5 +66,15 @@
   "item.biotech.blueprint_bioreactor": "Чертёж: Биореактор",
   "block.biotech.dna_cable": "Кабель ДНК",
   "screen.biotech.structure_ready": "Структура собрана",
-  "screen.biotech.projection_active": "Проекция активна"
+  "screen.biotech.projection_active": "Проекция активна",
+  "item.biotech.assembly_wrench": "Сборочный ключ BioTech",
+  "key.biotech.open_dna_blacklist": "Открыть список исключений ДНК",
+  "block.biotech.formed_multiblock": "Собранная машина BioTech",
+  "block.biotech.formed_frame": "Каркас собранной машины",
+  "key.biotech.switch_dna_injector_mode": "Переключить режим ДНК-инъектора",
+  "item.biotech.nether_adaptation_module": "Модуль адской адаптации",
+  "item.biotech.pocket_battery": "Карманный биоаккумулятор",
+  "item.biotech.improved_pocket_battery": "Улучшенный карманный биоаккумулятор",
+  "item.biotech.advanced_pocket_battery": "Продвинутый карманный биоаккумулятор",
+  "item.biotech.quantum_pocket_battery": "Квантовый карманный биоаккумулятор"
 }

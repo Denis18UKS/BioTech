@@ -22,10 +22,9 @@ neoForge {
     // Specify the version of NeoForge to use.
     version = project.neo_version
 
-    parchment {
-        mappingsVersion = project.parchment_mappings_version
-        minecraftVersion = project.parchment_minecraft_version
-    }
+    // Используем официальные mappings Minecraft 1.21.1.
+    // Parchment для 1.21.11 здесь недопустим: он создавал несовместимые
+    // JVM-дескрипторы методов событий при запуске на Minecraft 1.21.1.
 
     // This line is optional. Access Transformers are automatically detected
     // accessTransformers.add('src/main/resources/META-INF/accesstransformer.cfg')

@@ -2,9 +2,14 @@ package neo.z_mods.biotech.registry;
 
 import neo.z_mods.biotech.BioTech;
 import neo.z_mods.biotech.block.BioMachineBlock;
+import neo.z_mods.biotech.block.CableBlock;
 import neo.z_mods.biotech.block.HoloProjectorBlock;
+import neo.z_mods.biotech.block.FormedFrameBlock;
+import neo.z_mods.biotech.block.FormedMultiblockBlock;
 import neo.z_mods.biotech.item.DnaInjectorItem;
+import neo.z_mods.biotech.item.AssemblyWrenchItem;
 import neo.z_mods.biotech.item.DnaSampleItem;
+import neo.z_mods.biotech.item.BioBatteryItem;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArmorMaterials;
 import net.minecraft.world.item.BlockItem;
@@ -51,12 +56,29 @@ public final class ModContent {
         return block;
     }
 
-    private static DeferredBlock<BioMachineBlock> registerMachine(String name, boolean cable) {
-        DeferredBlock<BioMachineBlock> block = BLOCKS.register(name, () -> new BioMachineBlock(machineProps(), cable));
+    private static DeferredBlock<BioMachineBlock> registerMachine(String name, BioMachineBlock.Role role) {
+        DeferredBlock<BioMachineBlock> block = BLOCKS.register(name, () -> new BioMachineBlock(machineProps(), role));
         DeferredItem<BlockItem> item = ITEMS.register(name, () -> new BlockItem(block.get(), new Item.Properties()));
         BLOCK_TAB_CONTENT.add(item);
         MACHINE_ENTITY_BLOCKS.add(block);
         return block;
+    }
+
+    private static DeferredBlock<CableBlock> registerCable(String name) {
+        DeferredBlock<CableBlock> block = BLOCKS.register(name, () -> new CableBlock(machineProps()));
+        DeferredItem<BlockItem> item = ITEMS.register(name, () -> new BlockItem(block.get(), new Item.Properties()));
+        BLOCK_TAB_CONTENT.add(item);
+        MACHINE_ENTITY_BLOCKS.add(block);
+        return block;
+    }
+
+    private static DeferredItem<BioBatteryItem> registerBattery(String name, int capacity, int rate) {
+        DeferredItem<BioBatteryItem> item = ITEMS.register(
+                name,
+                () -> new BioBatteryItem(new Item.Properties(), capacity, rate)
+        );
+        ITEM_TAB_CONTENT.add(item);
+        return item;
     }
 
     private static DeferredItem<Item> registerItem(String name) {
@@ -85,6 +107,7 @@ public final class ModContent {
 
     // Расходные предметы и ДНК.
     public static final DeferredItem<DnaInjectorItem> DNK_INJECTOR = ITEMS.register("dnk_injector", () -> new DnaInjectorItem(new Item.Properties().durability(512).stacksTo(1)));
+    public static final DeferredItem<AssemblyWrenchItem> ASSEMBLY_WRENCH = ITEMS.register("assembly_wrench", () -> new AssemblyWrenchItem(new Item.Properties().durability(512).stacksTo(1)));
     public static final DeferredItem<Item> DNA_CAPSULE_EMPTY = registerItem("dna_capsule_empty");
     public static final DeferredItem<DnaSampleItem> DNA_CAPSULE_STANDARD = ITEMS.register("dna_capsule_standard", () -> new DnaSampleItem(new Item.Properties().stacksTo(16)));
     public static final DeferredItem<DnaSampleItem> DNA_CAPSULE_IMPROVED = ITEMS.register("dna_capsule_improved", () -> new DnaSampleItem(new Item.Properties().stacksTo(16)));
@@ -95,6 +118,13 @@ public final class ModContent {
     public static final DeferredItem<Item> RANGE_UPGRADE = registerItem("range_upgrade");
     public static final DeferredItem<Item> SAMPLE_STABILIZER_UPGRADE = registerItem("sample_stabilizer_upgrade");
     public static final DeferredItem<Item> EXTRACTION_ACCELERATOR_UPGRADE = registerItem("extraction_accelerator_upgrade");
+    public static final DeferredItem<Item> NETHER_ADAPTATION_MODULE = registerItem("nether_adaptation_module");
+
+    // Карманные аккумуляторы для прямого питания машин без кабельной сети.
+    public static final DeferredItem<BioBatteryItem> POCKET_BATTERY = registerBattery("pocket_battery", 20_000, 240);
+    public static final DeferredItem<BioBatteryItem> IMPROVED_POCKET_BATTERY = registerBattery("improved_pocket_battery", 80_000, 800);
+    public static final DeferredItem<BioBatteryItem> ADVANCED_POCKET_BATTERY = registerBattery("advanced_pocket_battery", 320_000, 2_400);
+    public static final DeferredItem<BioBatteryItem> QUANTUM_POCKET_BATTERY = registerBattery("quantum_pocket_battery", 1_280_000, 8_000);
 
     // Защитный костюм: временно использует ванильную геометрию железной брони.
     public static final DeferredItem<ArmorItem> PROTECTIVE_HELMET = ITEMS.register("protective_helmet", () -> new ArmorItem(ArmorMaterials.IRON, ArmorItem.Type.HELMET, new Item.Properties().durability(420)));
@@ -104,6 +134,7 @@ public final class ModContent {
 
     static {
         ITEM_TAB_CONTENT.add(DNK_INJECTOR);
+        ITEM_TAB_CONTENT.add(ASSEMBLY_WRENCH);
         ITEM_TAB_CONTENT.add(DNA_CAPSULE_STANDARD);
         ITEM_TAB_CONTENT.add(DNA_CAPSULE_IMPROVED);
         ITEM_TAB_CONTENT.add(PROTECTIVE_HELMET);
@@ -118,32 +149,45 @@ public final class ModContent {
     public static final DeferredBlock<Block> PURIFIED_GLASS = registerBlock("purified_glass", glassProps().mapColor(MapColor.COLOR_LIGHT_GREEN));
 
     // Одноблочные и мультиблочные машины.
-    public static final DeferredBlock<BioMachineBlock> DNA_ANALYZER = registerMachine("dna_analyzer", false);
-    public static final DeferredBlock<BioMachineBlock> DNA_SYNTHESIZER = registerMachine("dna_synthesizer", false);
-    public static final DeferredBlock<BioMachineBlock> DNA_MIXER = registerMachine("dna_mixer", false);
-    public static final DeferredBlock<BioMachineBlock> DNA_HYBRIDIZER = registerMachine("dna_hybridizer", false);
-    public static final DeferredBlock<BioMachineBlock> DNA_INTEGRATOR = registerMachine("dna_integrator", false);
-    public static final DeferredBlock<BioMachineBlock> BIOREACTOR = registerMachine("bioreactor", false);
-    public static final DeferredBlock<BioMachineBlock> INJECTOR_UPGRADER = registerMachine("injector_upgrader", false);
-    public static final DeferredBlock<BioMachineBlock> GENE_ANALYZER = registerMachine("gene_analyzer", false);
-    public static final DeferredBlock<BioMachineBlock> COOLER = registerMachine("cooler", false);
+    public static final DeferredBlock<BioMachineBlock> DNA_ANALYZER = registerMachine("dna_analyzer", BioMachineBlock.Role.SINGLE_MACHINE);
+    public static final DeferredBlock<BioMachineBlock> DNA_SYNTHESIZER = registerMachine("dna_synthesizer", BioMachineBlock.Role.MULTIBLOCK_CONTROLLER);
+    public static final DeferredBlock<BioMachineBlock> DNA_MIXER = registerMachine("dna_mixer", BioMachineBlock.Role.MULTIBLOCK_CONTROLLER);
+    public static final DeferredBlock<BioMachineBlock> DNA_HYBRIDIZER = registerMachine("dna_hybridizer", BioMachineBlock.Role.MULTIBLOCK_CONTROLLER);
+    public static final DeferredBlock<BioMachineBlock> DNA_INTEGRATOR = registerMachine("dna_integrator", BioMachineBlock.Role.MULTIBLOCK_CONTROLLER);
+    public static final DeferredBlock<BioMachineBlock> BIOREACTOR = registerMachine("bioreactor", BioMachineBlock.Role.MULTIBLOCK_CONTROLLER);
+    public static final DeferredBlock<BioMachineBlock> INJECTOR_UPGRADER = registerMachine("injector_upgrader", BioMachineBlock.Role.SINGLE_MACHINE);
+    public static final DeferredBlock<BioMachineBlock> GENE_ANALYZER = registerMachine("gene_analyzer", BioMachineBlock.Role.SINGLE_MACHINE);
+    public static final DeferredBlock<BioMachineBlock> COOLER = registerMachine("cooler", BioMachineBlock.Role.SINGLE_MACHINE);
 
     // Служебные блоки мультиструктур и энергии.
-    public static final DeferredBlock<BioMachineBlock> CONTROLLER = registerMachine("controller", false);
-    public static final DeferredBlock<BioMachineBlock> DNA_STABILIZER = registerMachine("dna_stabilizer", false);
-    public static final DeferredBlock<BioMachineBlock> ENERGY_PORT = registerMachine("energy_port", false);
-    public static final DeferredBlock<BioMachineBlock> DNA_CABLE = registerMachine("dna_cable", false);
-    public static final DeferredBlock<BioMachineBlock> FUSION_CHAMBER = registerMachine("fusion_chamber", false);
-    public static final DeferredBlock<BioMachineBlock> PLAYER_CAPSULE = registerMachine("player_capsule", false);
-    public static final DeferredBlock<BioMachineBlock> BIO_DISTRIBUTOR = registerMachine("bio_distributor", false);
-    public static final DeferredBlock<BioMachineBlock> ENERGY_STORAGE = registerMachine("energy_storage", false);
-    public static final DeferredBlock<BioMachineBlock> BIO_STORAGE = registerMachine("bio_storage", false);
+    public static final DeferredBlock<BioMachineBlock> CONTROLLER = registerMachine("controller", BioMachineBlock.Role.SERVICE);
+    public static final DeferredBlock<BioMachineBlock> DNA_STABILIZER = registerMachine("dna_stabilizer", BioMachineBlock.Role.SERVICE);
+    public static final DeferredBlock<BioMachineBlock> ENERGY_PORT = registerMachine("energy_port", BioMachineBlock.Role.ENERGY_PORT);
+    public static final DeferredBlock<BioMachineBlock> DNA_CABLE = registerMachine("dna_cable", BioMachineBlock.Role.SERVICE);
+    public static final DeferredBlock<BioMachineBlock> FUSION_CHAMBER = registerMachine("fusion_chamber", BioMachineBlock.Role.SERVICE);
+    public static final DeferredBlock<BioMachineBlock> PLAYER_CAPSULE = registerMachine("player_capsule", BioMachineBlock.Role.SERVICE);
+    public static final DeferredBlock<BioMachineBlock> BIO_DISTRIBUTOR = registerMachine("bio_distributor", BioMachineBlock.Role.SERVICE);
+    public static final DeferredBlock<BioMachineBlock> ENERGY_STORAGE = registerMachine("energy_storage", BioMachineBlock.Role.SERVICE);
+    public static final DeferredBlock<BioMachineBlock> BIO_STORAGE = registerMachine("bio_storage", BioMachineBlock.Role.SERVICE);
 
     // Четыре уровня биокабеля.
-    public static final DeferredBlock<BioMachineBlock> BASIC_BIOCABLE = registerMachine("basic_biocable", true);
-    public static final DeferredBlock<BioMachineBlock> IMPROVED_BIOCABLE = registerMachine("improved_biocable", true);
-    public static final DeferredBlock<BioMachineBlock> ADVANCED_BIOCABLE = registerMachine("advanced_biocable", true);
-    public static final DeferredBlock<BioMachineBlock> QUANTUM_BIOCABLE = registerMachine("quantum_biocable", true);
+    public static final DeferredBlock<CableBlock> BASIC_BIOCABLE = registerCable("basic_biocable");
+    public static final DeferredBlock<CableBlock> IMPROVED_BIOCABLE = registerCable("improved_biocable");
+    public static final DeferredBlock<CableBlock> ADVANCED_BIOCABLE = registerCable("advanced_biocable");
+    public static final DeferredBlock<CableBlock> QUANTUM_BIOCABLE = registerCable("quantum_biocable");
+
+    // Служебные блоки уже собранной цельной 3D-машины. Они не выдаются игроку напрямую.
+    public static final DeferredBlock<FormedMultiblockBlock> FORMED_MULTIBLOCK = BLOCKS.register(
+            "formed_multiblock",
+            () -> new FormedMultiblockBlock(machineProps().strength(4.5F, 18.0F).noOcclusion())
+    );
+    public static final DeferredBlock<FormedFrameBlock> FORMED_FRAME = BLOCKS.register(
+            "formed_frame",
+            () -> new FormedFrameBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(4.5F, 18.0F)
+                    .noOcclusion())
+    );
 
     // Голопроектор и чертежи.
     public static final DeferredBlock<HoloProjectorBlock> HOLO_PROJECTOR = BLOCKS.register("holo_projector", () -> new HoloProjectorBlock(machineProps()));

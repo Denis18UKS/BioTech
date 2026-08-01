@@ -1,6 +1,7 @@
 package neo.z_mods.biotech.menu;
 
 import neo.z_mods.biotech.block.entity.BioMachineBlockEntity;
+import neo.z_mods.biotech.item.BioBatteryItem;
 import neo.z_mods.biotech.registry.ModMenus;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
@@ -13,7 +14,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 public class BioMachineMenu extends AbstractContainerMenu {
-    private static final int MACHINE_SLOTS = 3;
+    private static final int MACHINE_SLOTS = 4;
     private final Container container;
     private final ContainerData data;
 
@@ -37,8 +38,14 @@ public class BioMachineMenu extends AbstractContainerMenu {
                 return false;
             }
         });
+        addSlot(new Slot(container, BioMachineBlockEntity.BATTERY_SLOT, 164, 35) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                return stack.getItem() instanceof BioBatteryItem;
+            }
+        });
 
-        addPlayerInventory(playerInventory, 8, 84);
+        addPlayerInventory(playerInventory, 16, 84);
         addDataSlots(data);
     }
 
@@ -81,19 +88,28 @@ public class BioMachineMenu extends AbstractContainerMenu {
     public ItemStack quickMoveStack(Player player, int index) {
         ItemStack result = ItemStack.EMPTY;
         Slot slot = slots.get(index);
-        if (slot.hasItem()) {
-            ItemStack source = slot.getItem();
-            result = source.copy();
-            if (index < MACHINE_SLOTS) {
-                if (!moveItemStackTo(source, MACHINE_SLOTS, slots.size(), true)) return ItemStack.EMPTY;
-            } else if (!moveItemStackTo(source, 0, 2, false)) {
+        if (!slot.hasItem()) {
+            return result;
+        }
+
+        ItemStack source = slot.getItem();
+        result = source.copy();
+        if (index < MACHINE_SLOTS) {
+            if (!moveItemStackTo(source, MACHINE_SLOTS, slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
-            if (source.isEmpty()) slot.setByPlayer(ItemStack.EMPTY);
-            else slot.setChanged();
-            if (source.getCount() == result.getCount()) return ItemStack.EMPTY;
-            slot.onTake(player, source);
+        } else if (source.getItem() instanceof BioBatteryItem) {
+            if (!moveItemStackTo(source, BioMachineBlockEntity.BATTERY_SLOT, BioMachineBlockEntity.BATTERY_SLOT + 1, false)) {
+                return ItemStack.EMPTY;
+            }
+        } else if (!moveItemStackTo(source, 0, 2, false)) {
+            return ItemStack.EMPTY;
         }
+
+        if (source.isEmpty()) slot.setByPlayer(ItemStack.EMPTY);
+        else slot.setChanged();
+        if (source.getCount() == result.getCount()) return ItemStack.EMPTY;
+        slot.onTake(player, source);
         return result;
     }
 

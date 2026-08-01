@@ -24,5 +24,29 @@ public class ModNetworking {
                 VibrosStatePacket.STREAM_CODEC,
                 VibrosStatePacket::handle
         );
+
+        registrar.playToClient(
+                DnaBlacklistSyncPacket.TYPE,
+                DnaBlacklistSyncPacket.STREAM_CODEC,
+                DnaBlacklistSyncPacket::handle
+        );
+
+        registrar.playToServer(
+                DnaBlacklistRequestPacket.TYPE,
+                DnaBlacklistRequestPacket.STREAM_CODEC,
+                DnaBlacklistRequestPacket::handle
+        );
+
+        registrar.playToServer(
+                DnaBlacklistUpdatePacket.TYPE,
+                DnaBlacklistUpdatePacket.STREAM_CODEC,
+                DnaBlacklistUpdatePacket::handle
+        );
+
+        registrar.playToServer(
+                DnaInjectorModePacket.TYPE,
+                DnaInjectorModePacket.STREAM_CODEC,
+                DnaInjectorModePacket::handle
+        );
     }
 }

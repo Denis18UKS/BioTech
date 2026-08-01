@@ -13,6 +13,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.RegisterItemDecorationsEvent;
+import neo.z_mods.biotech.registry.ModContent;
 
 @EventBusSubscriber(modid = BioTech.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class ClientRegistration {
@@ -23,6 +25,7 @@ public final class ClientRegistration {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(ModBlockEntities.HOLO_PROJECTOR.get(), HologramProjectorRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.FORMED_MULTIBLOCK.get(), FormedMultiblockRenderer::new);
     }
 
 
@@ -35,6 +38,14 @@ public final class ClientRegistration {
     @SubscribeEvent
     public static void registerAdditionalModels(ModelEvent.RegisterAdditional event) {
         event.register(DNK_INJECTOR_HAND_MODEL);
+    }
+
+
+    @SubscribeEvent
+    public static void registerItemDecorations(RegisterItemDecorationsEvent event) {
+        DnaCapsuleDecorator decorator = new DnaCapsuleDecorator();
+        event.register(ModContent.DNA_CAPSULE_STANDARD.get(), decorator);
+        event.register(ModContent.DNA_CAPSULE_IMPROVED.get(), decorator);
     }
 
     private ClientRegistration() {

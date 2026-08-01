@@ -1,8 +1,9 @@
 package neo.z_mods.biotech.block.entity;
 
 import neo.z_mods.biotech.block.BioMachineBlock;
+import neo.z_mods.biotech.item.DnaSampleItem;
+import neo.z_mods.biotech.item.BioBatteryItem;
 import neo.z_mods.biotech.menu.BioMachineMenu;
-import neo.z_mods.biotech.multiblock.MultiblockDefinition;
 import neo.z_mods.biotech.multiblock.MultiblockRegistry;
 import neo.z_mods.biotech.registry.ModBlockEntities;
 import neo.z_mods.biotech.registry.ModContent;
@@ -26,21 +27,29 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class BioMachineBlockEntity extends BlockEntity implements Container, MenuProvider {
     public static final int MAX_ENERGY = 100_000;
-    private final NonNullList<ItemStack> items = NonNullList.withSize(3, ItemStack.EMPTY);
-    private int energy;
-    private int progress;
-    private int maxProgress = 1;
-    private boolean formed;
-    private Direction formedDirection = Direction.NORTH;
+
+    public static final int BATTERY_SLOT = 3;
+
+    protected final NonNullList<ItemStack> items = NonNullList.withSize(4, ItemStack.EMPTY);
+    protected int energy;
+    protected int progress;
+    protected int maxProgress = 1;
+    protected boolean formed;
+    protected Direction formedDirection = Direction.NORTH;
     private long lastStructureCheck;
 
     private final ContainerData dataAccess = new ContainerData() {
-        @Override public int get(int index) {
+        @Override
+        public int get(int index) {
             return switch (index) {
                 case 0 -> energy;
                 case 1 -> progress;
@@ -49,52 +58,94 @@ public class BioMachineBlockEntity extends BlockEntity implements Container, Men
                 default -> 0;
             };
         }
-        @Override public void set(int index, int value) {
+
+        @Override
+        public void set(int index, int value) {
             switch (index) {
                 case 0 -> energy = value;
                 case 1 -> progress = value;
                 case 2 -> formed = value != 0;
                 case 3 -> maxProgress = Math.max(1, value);
-                default -> { }
+                default -> {
+                }
             }
         }
-        @Override public int getCount() { return 4; }
+
+        @Override
+        public int getCount() {
+            return 4;
+        }
     };
 
     public BioMachineBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.BIO_MACHINE.get(), pos, state);
+        this(ModBlockEntities.BIO_MACHINE.get(), pos, state);
+    }
+
+    protected BioMachineBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, BioMachineBlockEntity machine) {
-        if (level.isClientSide()) return;
-        String id = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
-
-        if (state.getBlock() instanceof BioMachineBlock machineBlock && machineBlock.isCable()) {
-            machine.balanceCableEnergy(level, pos, cableRate(id));
+        if (level.isClientSide()) {
             return;
         }
 
-        if (level.getGameTime() - machine.lastStructureCheck >= 20L) {
-            machine.lastStructureCheck = level.getGameTime();
-            MultiblockDefinition definition = MultiblockRegistry.get(id);
-            if (definition == null) {
-                machine.formed = true;
-            } else {
-                Direction direction = definition.findValidRotation(level, pos);
-                machine.formed = direction != null;
-                if (direction != null) machine.formedDirection = direction;
+        String id = machine.getMachineId(state);
+        if (id.isBlank()) {
+            return;
+        }
+
+        if (state.getBlock() instanceof BioMachineBlock machineBlock) {
+            if (machineBlock.isCable()) {
+                machine.balanceCableEnergy(level, pos, cableRate(id));
+                return;
             }
+            if (machineBlock.isEnergyPort()) {
+                machine.balanceEnergyPort(level, pos, 900);
+                return;
+            }
+        }
+
+        machine.drainPocketBattery();
+
+        if (machine.isCollapsedFormed()) {
+            machine.formed = true;
+            machine.formedDirection = machine.getCollapsedDirection();
+        } else if (level.getGameTime() - machine.lastStructureCheck >= 20L) {
+            machine.lastStructureCheck = level.getGameTime();
+            // Контроллер мультиблока не работает и не открывает GUI до сборки ключом.
+            machine.formed = MultiblockRegistry.get(id) == null;
             machine.setChanged();
         }
 
-        machine.pullEnergy(level, pos, 300);
+        if (machine.isCollapsedFormed()) {
+            machine.pullEnergy(level, pos, 500);
+        } else {
+            machine.pullEnergyFromAdjacentPorts(level, pos, 500);
+        }
+
         if (id.equals("bioreactor")) {
             machine.tickBioreactor();
+            if (machine.formed) {
+                machine.pushEnergy(level, pos, 900);
+            }
         } else if (machine.formed) {
             machine.tickProcess(id);
         } else {
             machine.progress = Math.max(0, machine.progress - 2);
         }
+    }
+
+    protected String getMachineId(BlockState state) {
+        return BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
+    }
+
+    protected boolean isCollapsedFormed() {
+        return false;
+    }
+
+    protected Direction getCollapsedDirection() {
+        return formedDirection;
     }
 
     private static int cableRate(String id) {
@@ -107,42 +158,145 @@ public class BioMachineBlockEntity extends BlockEntity implements Container, Men
     }
 
     private void balanceCableEnergy(Level level, BlockPos pos, int rate) {
+        // Кабели обмениваются энергией только с другими кабелями BioTech.
+        // Машины подключаются через настоящий ENERGY_PORT или порт собранной МБМ.
         for (Direction direction : Direction.values()) {
-            if (!(level.getBlockEntity(pos.relative(direction)) instanceof BioMachineBlockEntity other)) continue;
-            int difference = other.energy - energy;
-            if (difference > 0) {
-                int moved = Math.min(rate, Math.min(Math.max(1, difference / 2), Math.min(other.energy, MAX_ENERGY - energy)));
-                if (moved > 0) {
-                    other.energy -= moved;
-                    energy += moved;
-                    other.setChanged();
-                }
-            } else if (difference < 0) {
-                int moved = Math.min(rate, Math.min(Math.max(1, -difference / 2), Math.min(energy, MAX_ENERGY - other.energy)));
-                if (moved > 0) {
-                    energy -= moved;
-                    other.energy += moved;
-                    other.setChanged();
+            if (!(level.getBlockEntity(pos.relative(direction)) instanceof BioMachineBlockEntity other)
+                    || !(other.getBlockState().getBlock() instanceof BioMachineBlock otherBlock)
+                    || !otherBlock.isCable()) {
+                continue;
+            }
+            transferBalanced(other, rate);
+        }
+        setChanged();
+    }
+
+    private void balanceEnergyPort(Level level, BlockPos pos, int rate) {
+        for (Direction direction : Direction.values()) {
+            BlockPos otherPos = pos.relative(direction);
+            if (!(level.getBlockEntity(otherPos) instanceof BioMachineBlockEntity other)) {
+                continue;
+            }
+            if (other.getBlockState().getBlock() instanceof BioMachineBlock otherBlock) {
+                if (otherBlock.isCable()) {
+                    transferBalanced(other, rate);
+                } else if (otherBlock.role() == BioMachineBlock.Role.SINGLE_MACHINE) {
+                    int moved = Math.min(rate, Math.min(energy, MAX_ENERGY - other.energy));
+                    if (moved > 0) {
+                        energy -= moved;
+                        other.energy += moved;
+                        other.setChanged();
+                    }
                 }
             }
         }
         setChanged();
     }
 
-    private void pullEnergy(Level level, BlockPos pos, int rate) {
+    private void transferBalanced(BioMachineBlockEntity other, int rate) {
+        int difference = other.energy - energy;
+        if (difference > 0) {
+            int moved = Math.min(rate, Math.min(Math.max(1, difference / 2), Math.min(other.energy, MAX_ENERGY - energy)));
+            if (moved > 0) {
+                other.energy -= moved;
+                energy += moved;
+                other.setChanged();
+            }
+        } else if (difference < 0) {
+            int moved = Math.min(rate, Math.min(Math.max(1, -difference / 2), Math.min(energy, MAX_ENERGY - other.energy)));
+            if (moved > 0) {
+                energy -= moved;
+                other.energy += moved;
+                other.setChanged();
+            }
+        }
+    }
+
+    private void drainPocketBattery() {
+        ItemStack stack = items.get(BATTERY_SLOT);
+        if (!(stack.getItem() instanceof BioBatteryItem battery) || energy >= MAX_ENERGY) {
+            return;
+        }
+        int stored = battery.getEnergy(stack);
+        int moved = Math.min(battery.transferRate(), Math.min(stored, MAX_ENERGY - energy));
+        if (moved <= 0) {
+            return;
+        }
+        battery.setEnergy(stack, stored - moved);
+        energy += moved;
+        setChanged();
+    }
+
+    /** Позиции портов собранной машины. Обычные машины питаются через отдельный ENERGY_PORT. */
+    protected Iterable<BlockPos> energyInputPositions(Level level, BlockPos pos) {
+        return java.util.List.of();
+    }
+
+    protected void pullEnergy(Level level, BlockPos pos, int rate) {
+        Set<BlockPos> checked = new HashSet<>();
+        for (BlockPos inputPos : energyInputPositions(level, pos)) {
+            for (Direction direction : Direction.values()) {
+                BlockPos cablePos = inputPos.relative(direction);
+                if (!checked.add(cablePos) || !(level.getBlockEntity(cablePos) instanceof BioMachineBlockEntity other)) {
+                    continue;
+                }
+                if (!(other.getBlockState().getBlock() instanceof BioMachineBlock cable) || !cable.isCable()) {
+                    continue;
+                }
+                int moved = Math.min(rate, Math.min(other.energy, MAX_ENERGY - energy));
+                if (moved <= 0) {
+                    continue;
+                }
+                other.energy -= moved;
+                energy += moved;
+                other.setChanged();
+            }
+        }
+    }
+
+    protected void pushEnergy(Level level, BlockPos pos, int rate) {
+        Set<BlockPos> checked = new HashSet<>();
+        for (BlockPos outputPos : energyInputPositions(level, pos)) {
+            for (Direction direction : Direction.values()) {
+                BlockPos cablePos = outputPos.relative(direction);
+                if (!checked.add(cablePos) || !(level.getBlockEntity(cablePos) instanceof BioMachineBlockEntity cableEntity)) {
+                    continue;
+                }
+                if (!(cableEntity.getBlockState().getBlock() instanceof BioMachineBlock cable) || !cable.isCable()) {
+                    continue;
+                }
+                int moved = Math.min(rate, Math.min(energy, MAX_ENERGY - cableEntity.energy));
+                if (moved <= 0) {
+                    continue;
+                }
+                energy -= moved;
+                cableEntity.energy += moved;
+                cableEntity.setChanged();
+            }
+        }
+    }
+
+    private void pullEnergyFromAdjacentPorts(Level level, BlockPos pos, int rate) {
         for (Direction direction : Direction.values()) {
-            if (!(level.getBlockEntity(pos.relative(direction)) instanceof BioMachineBlockEntity other)) continue;
-            if (!(other.getBlockState().getBlock() instanceof BioMachineBlock cable) || !cable.isCable()) continue;
-            int moved = Math.min(rate, Math.min(other.energy, MAX_ENERGY - energy));
-            if (moved <= 0) continue;
-            other.energy -= moved;
-            energy += moved;
-            other.setChanged();
+            if (!(level.getBlockEntity(pos.relative(direction)) instanceof BioMachineBlockEntity port)) {
+                continue;
+            }
+            if (!(port.getBlockState().getBlock() instanceof BioMachineBlock block) || !block.isEnergyPort()) {
+                continue;
+            }
+            int moved = Math.min(rate, Math.min(port.energy, MAX_ENERGY - energy));
+            if (moved > 0) {
+                port.energy -= moved;
+                energy += moved;
+                port.setChanged();
+            }
         }
     }
 
     private void tickBioreactor() {
-        if (!formed || energy >= MAX_ENERGY) return;
+        if (!formed || energy >= MAX_ENERGY) {
+            return;
+        }
         ItemStack fuel = items.get(0);
         boolean biofuel = fuel.is(ModContent.BIOFUEL.get());
         boolean biomass = fuel.is(ModContent.BIOMASS.get());
@@ -153,7 +307,9 @@ public class BioMachineBlockEntity extends BlockEntity implements Container, Men
         }
         maxProgress = biofuel ? 40 : 100;
         progress++;
-        if (progress < maxProgress) return;
+        if (progress < maxProgress) {
+            return;
+        }
         fuel.shrink(1);
         energy = Math.min(MAX_ENERGY, energy + (biofuel ? 8000 : 2500));
         progress = 0;
@@ -168,24 +324,37 @@ public class BioMachineBlockEntity extends BlockEntity implements Container, Men
             return;
         }
         progress++;
-        if (progress < plan.duration) return;
+        if (progress < plan.duration) {
+            return;
+        }
 
         ItemStack originalFirst = items.get(0).copy();
         ItemStack originalSecond = items.get(1).copy();
         items.get(0).shrink(plan.consumeFirst);
-        if (plan.consumeSecond > 0) items.get(1).shrink(plan.consumeSecond);
-        ItemStack result = plan.copyOutput(originalFirst);
+        if (plan.consumeSecond > 0) {
+            items.get(1).shrink(plan.consumeSecond);
+        }
+        ItemStack result = plan.copyOutput(originalFirst, originalSecond);
 
         if (id.equals("injector_upgrader")) {
             CompoundTag data = result.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-            if (originalSecond.is(ModContent.RANGE_UPGRADE.get())) data.putBoolean("BioTechRange", true);
-            if (originalSecond.is(ModContent.SAMPLE_STABILIZER_UPGRADE.get())) data.putBoolean("BioTechStabilizer", true);
-            if (originalSecond.is(ModContent.EXTRACTION_ACCELERATOR_UPGRADE.get())) data.putBoolean("BioTechAccelerator", true);
+            if (originalSecond.is(ModContent.RANGE_UPGRADE.get())) {
+                data.putBoolean("BioTechRange", true);
+            }
+            if (originalSecond.is(ModContent.SAMPLE_STABILIZER_UPGRADE.get())) {
+                data.putBoolean("BioTechStabilizer", true);
+            }
+            if (originalSecond.is(ModContent.EXTRACTION_ACCELERATOR_UPGRADE.get())) {
+                data.putBoolean("BioTechAccelerator", true);
+            }
             result.set(DataComponents.CUSTOM_DATA, CustomData.of(data));
         }
 
-        if (items.get(2).isEmpty()) items.set(2, result);
-        else items.get(2).grow(result.getCount());
+        if (items.get(2).isEmpty()) {
+            items.set(2, result);
+        } else {
+            items.get(2).grow(result.getCount());
+        }
         energy -= plan.energyCost;
         progress = 0;
         setChanged();
@@ -194,15 +363,23 @@ public class BioMachineBlockEntity extends BlockEntity implements Container, Men
     private RecipePlan recipeFor(String id) {
         return switch (id) {
             case "dna_analyzer", "gene_analyzer" -> new RecipePlan(ModContent.DNA_CAPSULE_STANDARD.get(), null, new ItemStack(ModContent.GENETIC_CHIP.get()), 120, 400, 1, 0);
-            case "dna_synthesizer" -> new RecipePlan(ModContent.DNA_CAPSULE_STANDARD.get(), ModContent.BIO_GEL.get(), new ItemStack(ModContent.DNA_CAPSULE_IMPROVED.get()), 180, 1200, 1, 1);
-            case "dna_mixer" -> new RecipePlan(ModContent.DNA_CAPSULE_STANDARD.get(), ModContent.MUTAGEN.get(), new ItemStack(ModContent.DNA_CAPSULE_IMPROVED.get()), 160, 1000, 1, 1);
-            case "dna_hybridizer" -> new RecipePlan(ModContent.DNA_CAPSULE_STANDARD.get(), ModContent.DNA_CAPSULE_STANDARD.get(), new ItemStack(ModContent.RARE_DNA_SAMPLE.get()), 240, 1800, 1, 1);
+            case "dna_synthesizer" -> new DnaRecipePlan(ModContent.DNA_CAPSULE_STANDARD.get(), ModContent.BIO_GEL.get(), new ItemStack(ModContent.DNA_CAPSULE_IMPROVED.get()), 180, 1200, 1, 1, 12);
+            case "dna_mixer" -> new DnaRecipePlan(ModContent.DNA_CAPSULE_STANDARD.get(), ModContent.MUTAGEN.get(), new ItemStack(ModContent.DNA_CAPSULE_IMPROVED.get()), 160, 1000, 1, 1, 5);
+            case "dna_hybridizer" -> new DnaRecipePlan(ModContent.DNA_CAPSULE_STANDARD.get(), ModContent.DNA_CAPSULE_STANDARD.get(), new ItemStack(ModContent.DNA_CAPSULE_IMPROVED.get()), 240, 1800, 1, 1, -4);
             case "dna_integrator" -> new RecipePlan(ModContent.DNA_CAPSULE_IMPROVED.get(), ModContent.BIO_GEL.get(), new ItemStack(ModContent.BIO_CORE.get()), 300, 5000, 1, 1);
             case "injector_upgrader" -> new RecipePlan(ModContent.DNK_INJECTOR.get(), null, new ItemStack(ModContent.DNK_INJECTOR.get()), 100, 800, 1, 1) {
-                @Override public boolean matches(ItemStack first, ItemStack second) {
-                    return first.is(ModContent.DNK_INJECTOR.get()) && (second.is(ModContent.RANGE_UPGRADE.get()) || second.is(ModContent.SAMPLE_STABILIZER_UPGRADE.get()) || second.is(ModContent.EXTRACTION_ACCELERATOR_UPGRADE.get()));
+                @Override
+                public boolean matches(ItemStack first, ItemStack second) {
+                    return first.is(ModContent.DNK_INJECTOR.get())
+                            && (second.is(ModContent.RANGE_UPGRADE.get())
+                            || second.is(ModContent.SAMPLE_STABILIZER_UPGRADE.get())
+                            || second.is(ModContent.EXTRACTION_ACCELERATOR_UPGRADE.get()));
                 }
-                @Override public ItemStack copyOutput(ItemStack first) { return first.copyWithCount(1); }
+
+                @Override
+                public ItemStack copyOutput(ItemStack first, ItemStack second) {
+                    return first.copyWithCount(1);
+                }
             };
             case "cooler" -> new RecipePlan(ModContent.ENERGY_CRYSTAL.get(), ModContent.BIO_GEL.get(), new ItemStack(ModContent.QUANTUM_CRYSTAL.get()), 180, 1600, 1, 1);
             default -> null;
@@ -211,14 +388,43 @@ public class BioMachineBlockEntity extends BlockEntity implements Container, Men
 
     private boolean canOutput(ItemStack output) {
         ItemStack current = items.get(2);
-        return current.isEmpty() || (ItemStack.isSameItemSameComponents(current, output) && current.getCount() + output.getCount() <= current.getMaxStackSize());
+        return current.isEmpty()
+                || (ItemStack.isSameItemSameComponents(current, output)
+                && current.getCount() + output.getCount() <= current.getMaxStackSize());
     }
 
-    public int getEnergy() { return energy; }
-    public int getProgress() { return progress; }
-    public boolean isFormed() { return formed; }
-    public Direction getFormedDirection() { return formedDirection; }
-    public ContainerData getDataAccess() { return dataAccess; }
+    public int getEnergy() {
+        return energy;
+    }
+
+    public int getProgress() {
+        return progress;
+    }
+
+    public boolean isFormed() {
+        return formed;
+    }
+
+    public Direction getFormedDirection() {
+        return formedDirection;
+    }
+
+    public ContainerData getDataAccess() {
+        return dataAccess;
+    }
+
+    /** Сохраняет рабочее состояние контроллера перед превращением в цельную модель. */
+    public CompoundTag saveMachineData(HolderLookup.Provider registries) {
+        CompoundTag tag = new CompoundTag();
+        saveAdditional(tag, registries);
+        return tag;
+    }
+
+    /** Восстанавливает инвентарь, энергию и прогресс после сборки/разборки. */
+    public void loadMachineData(CompoundTag tag, HolderLookup.Provider registries) {
+        loadAdditional(tag, registries);
+        setChanged();
+    }
 
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
@@ -234,6 +440,9 @@ public class BioMachineBlockEntity extends BlockEntity implements Container, Men
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        for (int slot = 0; slot < items.size(); slot++) {
+            items.set(slot, ItemStack.EMPTY);
+        }
         ContainerHelper.loadAllItems(tag, items, registries);
         energy = tag.getInt("Energy");
         progress = tag.getInt("Progress");
@@ -242,16 +451,59 @@ public class BioMachineBlockEntity extends BlockEntity implements Container, Men
         formedDirection = Direction.from2DDataValue(tag.getInt("FormedDirection"));
     }
 
-    @Override public int getContainerSize() { return items.size(); }
-    @Override public boolean isEmpty() { return items.stream().allMatch(ItemStack::isEmpty); }
-    @Override public ItemStack getItem(int slot) { return items.get(slot); }
-    @Override public ItemStack removeItem(int slot, int amount) { ItemStack stack = ContainerHelper.removeItem(items, slot, amount); if (!stack.isEmpty()) setChanged(); return stack; }
-    @Override public ItemStack removeItemNoUpdate(int slot) { return ContainerHelper.takeItem(items, slot); }
-    @Override public void setItem(int slot, ItemStack stack) { items.set(slot, stack); stack.limitSize(getMaxStackSize(stack)); setChanged(); }
-    @Override public boolean stillValid(Player player) { return Container.stillValidBlockEntity(this, player); }
-    @Override public void clearContent() { items.clear(); setChanged(); }
+    @Override
+    public int getContainerSize() {
+        return items.size();
+    }
 
-    @Override public Component getDisplayName() { return Component.translatable(getBlockState().getBlock().getDescriptionId()); }
+    @Override
+    public boolean isEmpty() {
+        return items.stream().allMatch(ItemStack::isEmpty);
+    }
+
+    @Override
+    public ItemStack getItem(int slot) {
+        return items.get(slot);
+    }
+
+    @Override
+    public ItemStack removeItem(int slot, int amount) {
+        ItemStack stack = ContainerHelper.removeItem(items, slot, amount);
+        if (!stack.isEmpty()) {
+            setChanged();
+        }
+        return stack;
+    }
+
+    @Override
+    public ItemStack removeItemNoUpdate(int slot) {
+        return ContainerHelper.takeItem(items, slot);
+    }
+
+    @Override
+    public void setItem(int slot, ItemStack stack) {
+        items.set(slot, stack);
+        stack.limitSize(getMaxStackSize(stack));
+        setChanged();
+    }
+
+    @Override
+    public boolean stillValid(Player player) {
+        return Container.stillValidBlockEntity(this, player);
+    }
+
+    @Override
+    public void clearContent() {
+        for (int slot = 0; slot < items.size(); slot++) {
+            items.set(slot, ItemStack.EMPTY);
+        }
+        setChanged();
+    }
+
+    @Override
+    public Component getDisplayName() {
+        return Component.translatable(getBlockState().getBlock().getDescriptionId());
+    }
 
     @Nullable
     @Override
@@ -282,8 +534,41 @@ public class BioMachineBlockEntity extends BlockEntity implements Container, Men
             return first.is(firstTemplate.getItem()) && (secondTemplate.isEmpty() || second.is(secondTemplate.getItem()));
         }
 
-        public ItemStack copyOutput(ItemStack first) {
+        public ItemStack copyOutput(ItemStack first, ItemStack second) {
             return output.copy();
+        }
+    }
+
+    private static final class DnaRecipePlan extends RecipePlan {
+        private final int qualityDelta;
+
+        DnaRecipePlan(Item first, Item second, ItemStack output, int duration, int energyCost, int consumeFirst, int consumeSecond, int qualityDelta) {
+            super(first, second, output, duration, energyCost, consumeFirst, consumeSecond);
+            this.qualityDelta = qualityDelta;
+        }
+
+        @Override
+        public ItemStack copyOutput(ItemStack first, ItemStack second) {
+            ItemStack result = output.copy();
+            CompoundTag data = first.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+            int quality = Math.max(1, Math.min(100, data.getInt("BioTechQuality") + qualityDelta));
+            data.putInt("BioTechQuality", quality);
+            data.putString("BioTechState", DnaSampleItem.stateForQuality(quality));
+            if (second.getItem() instanceof DnaSampleItem) {
+                CompoundTag secondData = second.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+                String secondary = secondData.getString("BioTechEntity");
+                if (!secondary.isBlank()) {
+                    data.putString("BioTechSecondaryEntity", secondary);
+                }
+                if (secondData.hasUUID("BioTechPlayerUuid")) {
+                    data.putUUID("BioTechSecondaryPlayerUuid", secondData.getUUID("BioTechPlayerUuid"));
+                }
+                if (data.hasUUID("BioTechPlayerUuid") && data.hasUUID("BioTechSecondaryPlayerUuid")) {
+                    data.putBoolean("BioTechPlayerBlend", true);
+                }
+            }
+            result.set(DataComponents.CUSTOM_DATA, CustomData.of(data));
+            return result;
         }
     }
 }

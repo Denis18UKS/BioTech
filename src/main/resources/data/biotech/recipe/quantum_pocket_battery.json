@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "QAQ",
+    "ABA",
+    "QGQ"
+  ],
+  "key": {
+    "Q": {"item": "biotech:quantum_crystal"},
+    "A": {"item": "minecraft:amethyst_shard"},
+    "B": {"item": "biotech:advanced_pocket_battery"},
+    "G": {"item": "biotech:genetic_chip"}
+  },
+  "result": {"id": "biotech:quantum_pocket_battery", "count": 1}
+}

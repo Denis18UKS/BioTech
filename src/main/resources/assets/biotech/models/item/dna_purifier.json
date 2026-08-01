@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "minecraft:item/brush"
+    "layer0": "biotech:item/dna_purifier"
   }
 }

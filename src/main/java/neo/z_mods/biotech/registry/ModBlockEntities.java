@@ -3,6 +3,7 @@ package neo.z_mods.biotech.registry;
 import neo.z_mods.biotech.BioTech;
 import neo.z_mods.biotech.block.entity.BioMachineBlockEntity;
 import neo.z_mods.biotech.block.entity.HoloProjectorBlockEntity;
+import neo.z_mods.biotech.block.entity.FormedMultiblockBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -23,6 +24,14 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HoloProjectorBlockEntity>> HOLO_PROJECTOR = BLOCK_ENTITIES.register(
             "holo_projector",
             () -> BlockEntityType.Builder.of(HoloProjectorBlockEntity::new, ModContent.HOLO_PROJECTOR.get()).build(null)
+    );
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FormedMultiblockBlockEntity>> FORMED_MULTIBLOCK = BLOCK_ENTITIES.register(
+            "formed_multiblock",
+            () -> BlockEntityType.Builder.of(
+                    FormedMultiblockBlockEntity::new,
+                    ModContent.FORMED_MULTIBLOCK.get()
+            ).build(null)
     );
 
     private ModBlockEntities() {

@@ -61,7 +61,11 @@ public final class MultiblockRegistry {
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {
                 if (x == 0 && z == 0) continue;
-                req.add(new MultiblockDefinition.Requirement(new BlockPos(x, 0, z), ModContent.ENERGY_STORAGE));
+                boolean port = x == 0 && Math.abs(z) == 1;
+                req.add(new MultiblockDefinition.Requirement(
+                        new BlockPos(x, 0, z),
+                        port ? ModContent.ENERGY_PORT : ModContent.ENERGY_STORAGE
+                ));
             }
         }
         req.add(new MultiblockDefinition.Requirement(new BlockPos(0, 1, 0), ModContent.BIO_STORAGE));
@@ -88,6 +92,32 @@ public final class MultiblockRegistry {
         String path = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
         if (!path.startsWith("blueprint_")) return null;
         return get(path.substring("blueprint_".length()));
+    }
+
+    public record Match(MultiblockDefinition definition, BlockPos origin, net.minecraft.core.Direction facing) {
+        public BlockPos controllerPos() {
+            return definition.worldPosition(origin, facing, BlockPos.ZERO);
+        }
+    }
+
+    /** Ищет полностью собранную структуру даже если ключом кликнули не по контроллеру. */
+    public static Match findCompletedAt(net.minecraft.world.level.Level level, BlockPos clickedPos) {
+        net.minecraft.world.level.block.state.BlockState clickedState = level.getBlockState(clickedPos);
+        for (MultiblockDefinition definition : DEFINITIONS.values()) {
+            for (net.minecraft.core.Direction facing : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                for (MultiblockDefinition.Requirement requirement : definition.requirements()) {
+                    if (!clickedState.is(requirement.block().get())) {
+                        continue;
+                    }
+                    BlockPos rotated = definition.rotateOffset(facing, requirement.offset());
+                    BlockPos origin = clickedPos.subtract(rotated);
+                    if (definition.validate(level, origin, facing)) {
+                        return new Match(definition, origin, facing);
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private MultiblockRegistry() {

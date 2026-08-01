@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "GEG",
+    "EBE",
+    "GCG"
+  ],
+  "key": {
+    "G": {"item": "minecraft:gold_ingot"},
+    "E": {"item": "biotech:energy_crystal"},
+    "B": {"item": "biotech:improved_pocket_battery"},
+    "C": {"item": "biotech:bio_core"}
+  },
+  "result": {"id": "biotech:advanced_pocket_battery", "count": 1}
+}

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "SBS",
+    "NGN",
+    "SCS"
+  ],
+  "key": {
+    "S": {"item": "biotech:stabilizer"},
+    "B": {"item": "minecraft:blaze_powder"},
+    "N": {"item": "minecraft:netherite_scrap"},
+    "G": {"item": "biotech:genetic_chip"},
+    "C": {"item": "biotech:bio_core"}
+  },
+  "result": {"id": "biotech:nether_adaptation_module", "count": 1}
+}
