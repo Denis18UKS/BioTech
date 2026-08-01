@@ -27,9 +27,14 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Apply visual and DNA pipeline patch
+      - name: Restore asset generator and apply overhaul patch
         shell: bash
         run: |
+          mkdir -p tools
+          cat ci_payload/base_generator.b64.part* \
+            | tr -d '\n\r' \
+            | base64 --decode \
+            | gzip --decompress > tools/generate_biotech_assets.py
           cat ci_payload/visual_dna_overhaul.b64.part* \
             | tr -d '\n\r' \
             | base64 --decode \
