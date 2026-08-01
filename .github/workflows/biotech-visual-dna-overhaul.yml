@@ -41,39 +41,17 @@ jobs:
             | gzip --decompress > /tmp/visual-dna.patch
           patch --batch --forward -p1 < /tmp/visual-dna.patch
 
-      - name: Generate all BioTech textures and models
+      - name: Generate BioTech resources
         run: |
           python -m pip install --disable-pip-version-check pillow
           python tools/generate_biotech_assets.py
 
-      - name: Point DNA injector forward in third person
+      - name: Apply final injector pose and solid MBM redesign
         shell: bash
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          path = Path('src/main/resources/assets/biotech/models/item/dnk_injector_hand.json')
-          model = json.loads(path.read_text(encoding='utf-8'))
-          display = model.setdefault('display', {})
-
-          # The injector model is built along its Z axis. Rotating it by ±90°
-          # made it lie sideways across the player's body. Keep the existing
-          # textures and first-person pose, and only align the third-person
-          # model's Z axis with the player's look direction.
-          display['thirdperson_righthand'] = {
-              'rotation': [0, 0, 0],
-              'translation': [0, 2.0, 1.0],
-              'scale': [0.64, 0.64, 0.64]
-          }
-          display['thirdperson_lefthand'] = {
-              'rotation': [0, 0, 0],
-              'translation': [0, 2.0, 1.0],
-              'scale': [0.64, 0.64, 0.64]
-          }
-
-          path.write_text(json.dumps(model, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          PY
+          cp ci_payload/overrides/FormedMultiblockRenderer.java \
+            src/main/java/neo/z_mods/biotech/client/FormedMultiblockRenderer.java
+          python tools/postprocess_biotech_visuals.py
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
