@@ -1,0 +1,74 @@
+name: Build BioTech visual and DNA pipeline overhaul
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Apply visual and DNA pipeline patch
+        shell: bash
+        run: |
+          cat ci_payload/visual_dna_overhaul.b64.part* \
+            | tr -d '\n\r' \
+            | base64 --decode \
+            | gzip --decompress > /tmp/visual-dna.patch
+          patch --batch --forward -p1 < /tmp/visual-dna.patch
+
+      - name: Generate all BioTech textures and models
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          python tools/generate_biotech_assets.py
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Build
+        run: ./gradlew build --stacktrace
+
+      - name: Package patched sources and JAR
+        if: success()
+        run: |
+          mkdir -p dist/source/BioTech
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.gradle' \
+            --exclude='build' \
+            --exclude='bin' \
+            --exclude='run' \
+            --exclude='dist' \
+            --exclude='ci_payload' \
+            ./ dist/source/BioTech/
+          (cd dist/source && zip -qr ../BioTech-visual-dna-sources.zip BioTech)
+          cp build/libs/*.jar dist/
+          cp BUILD-INFO.txt dist/
+
+      - name: Upload artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BioTech-visual-dna-overhaul
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
