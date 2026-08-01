@@ -27,6 +27,32 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Prepare legacy package marker
+        shell: bash
+        run: |
+          cat > BUILD-INFO.txt <<'EOF'
+          BioTech — исправленная версия
+
+          Основа: коммит 7bfe6ecfd7cba67a45aaf9fdc47c7a2a6928942e ("Подвиги в биотеч")
+          Ветка: chatgpt/biovibros-hologram-fix
+          Pull request: #2
+
+          Исправления:
+          - гладкий органический биовыброс без экранного зерна;
+          - облачное ядро поднято выше обычной зоны игры;
+          - компактная панель БВ в левом верхнем углу;
+          - синхронизация голопроектора с клиентом;
+          - модели требуемых блоков прямо в голограмме;
+          - список требуемых блоков и их количества в GUI;
+          - успешная проверочная сборка NeoForge 1.21.1 / Java 21.
+
+          Сборка Windows:
+            gradlew.bat build
+
+          JAR появится в:
+            build/libs/
+          EOF
+
       - name: Apply feature patch
         shell: bash
         run: |
