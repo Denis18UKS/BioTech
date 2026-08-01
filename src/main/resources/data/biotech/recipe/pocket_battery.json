@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "ACA",
+    "CEC",
+    "AGA"
+  ],
+  "key": {
+    "A": {"item": "biotech:reinforced_alloy"},
+    "C": {"item": "minecraft:copper_ingot"},
+    "E": {"item": "biotech:energy_crystal"},
+    "G": {"item": "biotech:genetic_chip"}
+  },
+  "result": {"id": "biotech:pocket_battery", "count": 1}
+}
