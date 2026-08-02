@@ -61,7 +61,10 @@ jobs:
             ci_payload/dimension_dna_overhaul.b64.part01 \
             ci_payload/dimension_dna_overhaul.b64.part02 \
             ci_payload/dimension_dna_overhaul.b64.part03a \
-            ci_payload/dimension_dna_overhaul.b64.part03b \
+            ci_payload/dimension_dna_overhaul.b64.part03b0 \
+            ci_payload/dimension_dna_overhaul.b64.part03b1 \
+            ci_payload/dimension_dna_overhaul.b64.part03b2 \
+            ci_payload/dimension_dna_overhaul.b64.part03b3 \
             ci_payload/dimension_dna_overhaul.b64.part03c \
             ci_payload/dimension_dna_overhaul.b64.part04 \
             ci_payload/dimension_dna_overhaul.b64.part05 \
