@@ -53,6 +53,15 @@ jobs:
             src/main/java/neo/z_mods/biotech/client/FormedMultiblockRenderer.java
           python tools/postprocess_biotech_visuals.py
 
+      - name: Apply dimension events and DNA transformation patch
+        shell: bash
+        run: |
+          cat ci_payload/dimension_dna_overhaul.b64.part* \
+            | tr -d '\n\r' \
+            | base64 --decode \
+            | gzip --decompress > /tmp/dimension-dna.patch
+          patch --batch --forward -p1 < /tmp/dimension-dna.patch
+
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
@@ -80,7 +89,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: BioTech-visual-dna-overhaul
+          name: BioTech-dimension-DNA-overhaul
           path: dist/*
           if-no-files-found: error
           retention-days: 14
