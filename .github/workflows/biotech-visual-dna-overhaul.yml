@@ -56,7 +56,15 @@ jobs:
       - name: Apply dimension events and DNA transformation patch
         shell: bash
         run: |
-          cat ci_payload/dimension_dna_overhaul.b64.part* \
+          cat \
+            ci_payload/dimension_dna_overhaul.b64.part00 \
+            ci_payload/dimension_dna_overhaul.b64.part01 \
+            ci_payload/dimension_dna_overhaul.b64.part02 \
+            ci_payload/dimension_dna_overhaul.b64.part03a \
+            ci_payload/dimension_dna_overhaul.b64.part03b \
+            ci_payload/dimension_dna_overhaul.b64.part03c \
+            ci_payload/dimension_dna_overhaul.b64.part04 \
+            ci_payload/dimension_dna_overhaul.b64.part05 \
             | tr -d '\n\r' \
             | base64 --decode \
             | gzip --decompress > /tmp/dimension-dna.patch
