@@ -73,6 +73,22 @@ jobs:
             | gzip --decompress > /tmp/dimension-dna.patch
           patch --batch --forward -p1 < /tmp/dimension-dna.patch
 
+      - name: Apply NeoForge compile compatibility fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/main/java/neo/z_mods/biotech/VibrosEventHandler.java')
+          text = path.read_text(encoding='utf-8')
+          if 'import net.minecraft.world.phys.AABB;' not in text:
+              text = text.replace(
+                  'import net.minecraft.world.phys.Vec3;',
+                  'import net.minecraft.world.phys.AABB;\nimport net.minecraft.world.phys.Vec3;'
+              )
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
