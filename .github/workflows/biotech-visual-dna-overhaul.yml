@@ -89,6 +89,9 @@ jobs:
           path.write_text(text, encoding='utf-8')
           PY
 
+      - name: Remove DNA blacklist GUI and install fixed rules
+        run: python tools/remove_dna_blacklist_gui.py
+
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
