@@ -1,0 +1,70 @@
+name: Build SpaceExperiments standalone
+
+on:
+  push:
+    branches: [ build/spaceexperiments-standalone ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout build host
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore standalone SpaceExperiments source
+        shell: bash
+        run: |
+          rm -rf /tmp/SpaceExperiments
+          mkdir -p /tmp/SpaceExperiments
+          cp gradlew gradlew.bat build.gradle settings.gradle /tmp/SpaceExperiments/
+          cp -R gradle /tmp/SpaceExperiments/
+          cat \
+            space_build/compile00 \
+            space_build/compile01 \
+            space_build/compile02 \
+            space_build/compile03 \
+            space_build/compile04 \
+            | tr -d '\n\r' | base64 --decode > /tmp/space-source.zip
+          unzip -q /tmp/space-source.zip -d /tmp/space-restore
+          cp -R /tmp/space-restore/* /tmp/SpaceExperiments/
+          test -f /tmp/SpaceExperiments/gradle.properties
+          test -f /tmp/SpaceExperiments/src/main/java/dev/denis/spaceexperiments/SpaceExperiments.java
+
+      - name: Build standalone mod
+        working-directory: /tmp/SpaceExperiments
+        run: |
+          chmod +x gradlew
+          ./gradlew build --stacktrace
+
+      - name: Collect standalone artifact
+        if: success()
+        working-directory: /tmp/SpaceExperiments
+        run: |
+          mkdir -p dist
+          cp build/libs/*.jar dist/
+          ls -lah dist
+
+      - name: Upload standalone build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpaceExperiments-standalone-build
+          path: /tmp/SpaceExperiments/dist/*
+          if-no-files-found: error
+          retention-days: 14
