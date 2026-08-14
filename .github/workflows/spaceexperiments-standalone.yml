@@ -36,9 +36,7 @@ jobs:
           cp -R gradle /tmp/SpaceExperiments/
           cat \
             space_build/compile00 \
-            space_build/compile01a0 \
-            space_build/compile01a1 \
-            space_build/compile01b \
+            space_build/sc01_* \
             space_build/compile02 \
             space_build/compile03 \
             space_build/compile04 \
