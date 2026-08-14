@@ -30,13 +30,15 @@ jobs:
       - name: Restore standalone SpaceExperiments source
         shell: bash
         run: |
-          rm -rf /tmp/SpaceExperiments
-          mkdir -p /tmp/SpaceExperiments
+          rm -rf /tmp/SpaceExperiments /tmp/space-restore
+          mkdir -p /tmp/SpaceExperiments /tmp/space-restore
           cp gradlew gradlew.bat build.gradle settings.gradle /tmp/SpaceExperiments/
           cp -R gradle /tmp/SpaceExperiments/
           cat \
             space_build/compile00 \
-            space_build/compile01 \
+            space_build/compile01a0 \
+            space_build/compile01a1 \
+            space_build/compile01b \
             space_build/compile02 \
             space_build/compile03 \
             space_build/compile04 \
