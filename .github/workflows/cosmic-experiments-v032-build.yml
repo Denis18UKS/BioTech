@@ -1,0 +1,153 @@
+name: Build Cosmic Experiments v0.3.2 orbit pause
+
+on:
+  push:
+    branches:
+      - chatgpt/cosmic-experiments-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout technical build branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore standalone project base
+        shell: bash
+        run: |
+          git show 0255e907754e97194be6daa73457abbe1e2dea16:cosmic_ci/payload.part00 > /tmp/p0
+          git show 0255e907754e97194be6daa73457abbe1e2dea16:cosmic_ci/payload.part01 > /tmp/p1
+          cat /tmp/p0 /tmp/p1 | tr -d '\n\r' | base64 --decode > /tmp/cosmic.tar.gz
+          mkdir -p /tmp/cosmic
+          tar -xzf /tmp/cosmic.tar.gz -C /tmp/cosmic
+          cp gradlew gradlew.bat /tmp/cosmic/CosmicExperiments/
+          cp -r gradle /tmp/cosmic/CosmicExperiments/
+          chmod +x /tmp/cosmic/CosmicExperiments/gradlew
+
+      - name: Apply v0.2 base
+        shell: bash
+        run: |
+          cat cosmic_ci/v020_xz.part* | tr -d '\n\r' | base64 --decode > /tmp/cosmic-v020.tar.xz
+          tar -xJf /tmp/cosmic-v020.tar.xz -C /tmp/cosmic
+          grep -q 'mod_version=0.2.0' /tmp/cosmic/CosmicExperiments/gradle.properties
+
+      - name: Apply v0.3 living-system patch
+        shell: bash
+        run: |
+          cat cosmic_ci/v030_patch.part00 cosmic_ci/v030_patch.part01 cosmic_ci/v030_patch.part02 \
+              cosmic_ci/v030_patch.part03 cosmic_ci/v030_patch.part04 cosmic_ci/v030_patch.part05 \
+              | tr -d '\n\r' | base64 --decode | xz -dc > /tmp/cosmic-v030.patch
+          cd /tmp/cosmic/CosmicExperiments
+          patch --batch --forward -p5 < /tmp/cosmic-v030.patch
+
+      - name: Apply NeoForge 1.21.1 API compatibility
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/cosmic/CosmicExperiments')
+          p=root/'src/main/java/neo/z_mods/cosmicexperiment/SingularitySystem.java'
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('level.getEntities(null, box, entity -> entity.isAlive()', 'level.getEntities((Entity) null, box, entity -> entity.isAlive()')
+          s=s.replace('player.hurtServer(level, level.damageSources().magic(), distance < 7.0 ? 9.0F : 4.0F);', 'player.hurt(level.damageSources().magic(), distance < 7.0 ? 9.0F : 4.0F);')
+          p.write_text(s,encoding='utf-8')
+          p=root/'src/main/java/neo/z_mods/cosmicexperiment/HologramSystem.java'
+          p.write_text(p.read_text(encoding='utf-8').replace('        marker.setMarker(true);\n',''),encoding='utf-8')
+          p=root/'src/main/java/neo/z_mods/cosmicexperiment/PlanetTerrainHandler.java'
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('        if (!(event.getChunk().getLevel() instanceof ServerLevel level)) return;\n', '        if (!(event.getChunk() instanceof LevelChunk chunk)) return;\n        if (!(chunk.getLevel() instanceof ServerLevel level)) return;\n')
+          s=s.replace('        sculpt(event.getChunk(), body);','        sculpt(chunk, body);')
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Generate v0.3 custom item icons
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          mkdir -p /tmp/cosmic/CosmicExperiments/tools
+          cp cosmic_ci/generate_v030_item_textures.py /tmp/cosmic/CosmicExperiments/tools/generate_v030_item_textures.py
+          python /tmp/cosmic/CosmicExperiments/tools/generate_v030_item_textures.py
+
+      - name: Apply v0.3.1 runtime render fix
+        shell: bash
+        run: |
+          tr -d '\n\r' < cosmic_ci/v031_overlay.b64 | base64 --decode > /tmp/cosmic-v031.tar.xz
+          tar -xJf /tmp/cosmic-v031.tar.xz -C /tmp/cosmic
+
+      - name: Apply v0.3.2 orbit pause and visual planet scale
+        shell: bash
+        run: |
+          tr -d '\n\r' < cosmic_ci/v032_overlay.b64 | base64 --decode > /tmp/cosmic-v032.tar.xz
+          tar -xJf /tmp/cosmic-v032.tar.xz -C /tmp/cosmic
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root=Path('/tmp/cosmic/CosmicExperiments')
+          assert 'mod_version=0.3.2' in (root/'gradle.properties').read_text(encoding='utf-8')
+          commands=(root/'src/main/java/neo/z_mods/cosmicexperiment/CosmicCommands.java').read_text(encoding='utf-8')
+          assert 'literal("solar_pause")' in commands
+          orbit=(root/'src/main/java/neo/z_mods/cosmicexperiment/OrbitControl.java').read_text(encoding='utf-8')
+          assert 'effectiveOrbitGameTime' in orbit and 'accumulatedPausedTicks' in orbit
+          client=(root/'src/main/java/neo/z_mods/cosmicexperiment/client/CosmicClientState.java').read_text(encoding='utf-8')
+          assert 'orbitAstroDays' in client and 'orbitPaused()' in client
+          renderer=(root/'src/main/java/neo/z_mods/cosmicexperiment/client/CosmicShaderRenderer.java').read_text(encoding='utf-8')
+          assert 'OrbitPaused' in renderer and 'orbitAstroDays' in renderer
+          networking=(root/'src/main/java/neo/z_mods/cosmicexperiment/network/ModNetworking.java').read_text(encoding='utf-8')
+          assert 'OrbitStatePacket.TYPE' in networking
+          solar=(root/'src/main/resources/assets/cosmicexperiment/shaders/core/solar_system.fsh').read_text(encoding='utf-8')
+          assert 'visualBodyScale' in solar and 'pausedFloor' in solar and 'uniform float OrbitPaused' in solar
+          fallback=(root/'src/main/resources/assets/cosmicexperiment/shaders/core/solar_fallback.fsh').read_text(encoding='utf-8')
+          assert 'vscale' in fallback and 'uniform float OrbitPaused' in fallback
+          for name in ['solar_system.json','solar_fallback.json']:
+              data=json.loads((root/'src/main/resources/assets/cosmicexperiment/shaders/core'/name).read_text(encoding='utf-8'))
+              assert any(u.get('name')=='OrbitPaused' for u in data['uniforms'])
+          print('v0.3.2 overlay integrity OK')
+          PY
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build standalone mod
+        working-directory: /tmp/cosmic/CosmicExperiments
+        run: ./gradlew build --stacktrace
+
+      - name: Package JAR and sources
+        if: success()
+        shell: bash
+        run: |
+          mkdir -p /tmp/dist
+          cp /tmp/cosmic/CosmicExperiments/build/libs/*.jar /tmp/dist/CosmicExperiments-v0.3.2.jar
+          cd /tmp/cosmic
+          zip -qr /tmp/dist/CosmicExperiments-v0.3.2-sources.zip CosmicExperiments -x 'CosmicExperiments/.gradle/*' 'CosmicExperiments/build/*' 'CosmicExperiments/run/*'
+          cat > /tmp/dist/README.txt <<'EOF'
+          Cosmic Experiments v0.3.2
+          - /solar_pause toggles orbital revolution pause/resume;
+          - axial rotation never stops;
+          - paused time is excluded when resuming, so planets continue from exactly the frozen orbital positions;
+          - orbital state is synchronized to clients;
+          - distant planets use a visual-only angular LOD enlargement so all bodies remain visible without changing physical radii;
+          - while /solar_pause is active the observation angular floor is increased further for easier pursuit and inspection.
+          EOF
+
+      - name: Upload artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CosmicExperiments-v0.3.2-orbit-pause
+          path: /tmp/dist/*
+          retention-days: 14
+          if-no-files-found: error
