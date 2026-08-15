@@ -109,6 +109,36 @@ jobs:
           print('NeoForge compatibility fixes applied')
           PY
 
+      - name: Generate custom navigator and experiment item textures
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          mkdir -p /tmp/cosmic/CosmicExperiments/tools
+          cp cosmic_ci/generate_v030_item_textures.py /tmp/cosmic/CosmicExperiments/tools/generate_v030_item_textures.py
+          python /tmp/cosmic/CosmicExperiments/tools/generate_v030_item_textures.py
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root = Path('/tmp/cosmic/CosmicExperiments/src/main/resources/assets/cosmicexperiment')
+          models = root/'models/item'
+          textures = root/'textures/item'
+          missing=[]
+          for model in models.glob('*.json'):
+              data=json.loads(model.read_text(encoding='utf-8'))
+              layer=data.get('textures',{}).get('layer0')
+              if not layer or not layer.startswith('cosmicexperiment:item/'):
+                  continue
+              name=layer.split('/')[-1]
+              if not (textures/f'{name}.png').is_file():
+                  missing.append((model.name,name))
+          assert not missing, 'missing item textures: '+repr(missing)
+          required=[f'navigate_{b}.png' for b in ['sun','mercury','venus','earth','moon','mars','jupiter','saturn','uranus','neptune']]
+          required += ['spawn_andromeda_shader.png','spawn_milky_way_shader.png','spawn_supernova_shader.png','spawn_singularity_shader.png']
+          for name in required:
+              assert (textures/name).is_file(), name
+          print('All item model textures resolved; v0.3 custom icons present')
+          PY
+
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
@@ -137,7 +167,8 @@ jobs:
           Separate from BioTech; technical CI branch only.
           v0.3: living orbital system, stable world-space stars, unique rocky-world terrain,
           floorless gas-giant atmospheres, world-space shader holograms, per-body navigators,
-          Andromeda and Milky Way holograms, supernova test, and optional Singularity gravity.
+          Andromeda and Milky Way holograms, supernova test, optional Singularity gravity,
+          and custom per-body navigator/experiment item textures.
           EOF
 
       - name: Upload standalone artifact
