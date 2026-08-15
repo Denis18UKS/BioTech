@@ -40,10 +40,26 @@ jobs:
           from pathlib import Path
           import json
           root = Path('/tmp/cosmic/CosmicExperiments')
+
+          # Give the atmospheric veil time to become opaque before Minecraft performs
+          # its unavoidable ServerLevel switch, then leave it visible long enough for
+          # chunks on the other side to settle. Momentum is restored by the server code.
+          manager = root/'src/main/java/neo/z_mods/cosmicexperiment/SpaceTravelManager.java'
+          text = manager.read_text(encoding='utf-8')
+          text = text.replace('TRANSFER_DELAY_TICKS = 12', 'TRANSFER_DELAY_TICKS = 36')
+          manager.write_text(text, encoding='utf-8')
+
+          overlay = root/'src/main/resources/assets/cosmicexperiment/shaders/core/cosmic_overlay.fsh'
+          shader_text = overlay.read_text(encoding='utf-8')
+          shader_text = shader_text.replace('alpha=phase*(Creative>0.5?0.78:0.90);', 'alpha=phase*0.98;')
+          overlay.write_text(shader_text, encoding='utf-8')
+
           assert 'mod_version=0.2.0' in (root/'gradle.properties').read_text()
           shader = (root/'src/main/resources/assets/cosmicexperiment/shaders/core/solar_system.fsh').read_text()
           for token in ['EARTH_LAND[1024]', 'EarthRel', 'JupiterRel', 'SaturnRel', 'addFarPoint']:
               assert token in shader, token
+          assert 'TRANSFER_DELAY_TICKS = 36' in manager.read_text(encoding='utf-8')
+          assert 'alpha=phase*0.98;' in overlay.read_text(encoding='utf-8')
           for path in (root/'src/main/resources/assets/cosmicexperiment/shaders/core').glob('*.json'):
               json.loads(path.read_text())
           print('v0.2 overlay integrity OK')
@@ -76,8 +92,9 @@ jobs:
           Cosmic Experiments v0.2.0 — standalone NeoForge 1.21.1 mod
           Separate from BioTech. Technical CI branch only; BioTech main is untouched.
           Scale: 1 space block = 200 km; orbital distances and body radii use one shared physical scale.
-          v0.2: void-safe space, momentum-preserving atmospheric transfer, geographic Earth mask,
-          realistic body-specific shaders, precision-safe relative coordinates, visible unresolved planets.
+          v0.2: void-safe space, momentum-preserving atmospheric transfer, opaque transition veil,
+          geographic Earth mask, body-specific shaders, precision-safe relative coordinates,
+          and visible unresolved planets.
           EOF
 
       - name: Upload standalone artifact
