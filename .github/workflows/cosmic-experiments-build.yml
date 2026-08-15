@@ -72,8 +72,8 @@ jobs:
           for token in ['AstroDays', 'EarthRel', 'JupiterRel', 'SaturnRel', 'stableStarField']:
               assert token in solar, token
           hologram = (root/'src/main/resources/assets/cosmicexperiment/shaders/core/hologram.fsh').read_text(encoding='utf-8')
-          for token in ['andromeda', 'galaxy', 'singularity', 'supernova']:
-              assert token in hologram.lower(), token
+          for token in ['galaxyColor', 'id==20', 'id==21', 'id==22', 'id==23']:
+              assert token in hologram, token
           manager = (root/'src/main/java/neo/z_mods/cosmicexperiment/SpaceTravelManager.java').read_text(encoding='utf-8')
           assert 'TRANSFER_DELAY_TICKS = 36' in manager
           for path in (root/'src/main/resources/assets/cosmicexperiment/shaders/core').glob('*.json'):
