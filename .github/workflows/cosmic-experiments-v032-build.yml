@@ -84,7 +84,9 @@ jobs:
       - name: Apply v0.3.2 orbit pause and visual planet scale
         shell: bash
         run: |
-          tr -d '\n\r' < cosmic_ci/v032_overlay.b64 | base64 --decode > /tmp/cosmic-v032.tar.xz
+          cat cosmic_ci/v032_overlay.part00 cosmic_ci/v032_overlay.part01 cosmic_ci/v032_overlay.part02 \
+              cosmic_ci/v032_overlay.part03 cosmic_ci/v032_overlay.part04 \
+              | tr -d '\n\r' | base64 --decode > /tmp/cosmic-v032.tar.xz
           tar -xJf /tmp/cosmic-v032.tar.xz -C /tmp/cosmic
           python - <<'PY'
           from pathlib import Path
