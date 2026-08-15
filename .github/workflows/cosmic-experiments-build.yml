@@ -81,6 +81,34 @@ jobs:
           print('v0.3 payload integrity OK')
           PY
 
+      - name: Apply NeoForge 1.21.1 compatibility fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          root = Path('/tmp/cosmic/CosmicExperiments')
+
+          p = root/'src/main/java/neo/z_mods/cosmicexperiment/SingularitySystem.java'
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('level.getEntities(null, box, entity -> entity.isAlive()',
+                        'level.getEntities((Entity) null, box, entity -> entity.isAlive()')
+          s = s.replace('player.hurtServer(level, level.damageSources().magic(), distance < 7.0 ? 9.0F : 4.0F);',
+                        'player.hurt(level.damageSources().magic(), distance < 7.0 ? 9.0F : 4.0F);')
+          p.write_text(s, encoding='utf-8')
+
+          p = root/'src/main/java/neo/z_mods/cosmicexperiment/HologramSystem.java'
+          s = p.read_text(encoding='utf-8').replace('        marker.setMarker(true);\n', '')
+          p.write_text(s, encoding='utf-8')
+
+          p = root/'src/main/java/neo/z_mods/cosmicexperiment/PlanetTerrainHandler.java'
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('        if (!(event.getChunk().getLevel() instanceof ServerLevel level)) return;\n',
+                        '        if (!(event.getChunk() instanceof LevelChunk chunk)) return;\n        if (!(chunk.getLevel() instanceof ServerLevel level)) return;\n')
+          s = s.replace('        sculpt(event.getChunk(), body);', '        sculpt(chunk, body);')
+          p.write_text(s, encoding='utf-8')
+          print('NeoForge compatibility fixes applied')
+          PY
+
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
