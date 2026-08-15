@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore standalone project from original payload
+      - name: Restore standalone v0.1 base
         shell: bash
         run: |
           git show 0255e907754e97194be6daa73457abbe1e2dea16:cosmic_ci/payload.part00 > /tmp/p0
@@ -30,8 +30,24 @@ jobs:
           cp gradlew gradlew.bat /tmp/cosmic/CosmicExperiments/
           cp -r gradle /tmp/cosmic/CosmicExperiments/
           chmod +x /tmp/cosmic/CosmicExperiments/gradlew
-          sed -i 's/target.getMinY()/target.getMinBuildHeight()/g' \
-            /tmp/cosmic/CosmicExperiments/src/main/java/neo/z_mods/cosmicexperiment/SpaceTravelManager.java
+
+      - name: Apply standalone v0.2 realism overlay
+        shell: bash
+        run: |
+          cat cosmic_ci/v020_xz.part* | tr -d '\n\r' | base64 --decode > /tmp/cosmic-v020.tar.xz
+          tar -xJf /tmp/cosmic-v020.tar.xz -C /tmp/cosmic
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root = Path('/tmp/cosmic/CosmicExperiments')
+          assert 'mod_version=0.2.0' in (root/'gradle.properties').read_text()
+          shader = (root/'src/main/resources/assets/cosmicexperiment/shaders/core/solar_system.fsh').read_text()
+          for token in ['EARTH_LAND[1024]', 'EarthRel', 'JupiterRel', 'SaturnRel', 'addFarPoint']:
+              assert token in shader, token
+          for path in (root/'src/main/resources/assets/cosmicexperiment/shaders/core').glob('*.json'):
+              json.loads(path.read_text())
+          print('v0.2 overlay integrity OK')
+          PY
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -52,21 +68,23 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/dist
-          cp /tmp/cosmic/CosmicExperiments/build/libs/*.jar /tmp/dist/CosmicExperiments.jar
+          cp /tmp/cosmic/CosmicExperiments/build/libs/*.jar /tmp/dist/CosmicExperiments-v0.2.0.jar
           cd /tmp/cosmic
-          zip -qr /tmp/dist/CosmicExperiments-sources.zip CosmicExperiments \
+          zip -qr /tmp/dist/CosmicExperiments-v0.2.0-sources.zip CosmicExperiments \
             -x 'CosmicExperiments/.gradle/*' 'CosmicExperiments/build/*' 'CosmicExperiments/run/*'
           cat > /tmp/dist/README.txt <<'EOF'
-          Cosmic Experiments — standalone NeoForge 1.21.1 mod
+          Cosmic Experiments v0.2.0 — standalone NeoForge 1.21.1 mod
           Separate from BioTech. Technical CI branch only; BioTech main is untouched.
-          Scale: 1 space block = 1000 km. Solar-system distances/radii retain real relative proportions.
+          Scale: 1 space block = 200 km; orbital distances and body radii use one shared physical scale.
+          v0.2: void-safe space, momentum-preserving atmospheric transfer, geographic Earth mask,
+          realistic body-specific shaders, precision-safe relative coordinates, visible unresolved planets.
           EOF
 
       - name: Upload standalone artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: CosmicExperiments-standalone
+          name: CosmicExperiments-v0.2.0-standalone
           path: /tmp/dist/*
           retention-days: 14
           if-no-files-found: error
