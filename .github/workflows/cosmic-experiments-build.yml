@@ -31,38 +31,56 @@ jobs:
           cp -r gradle /tmp/cosmic/CosmicExperiments/
           chmod +x /tmp/cosmic/CosmicExperiments/gradlew
 
-      - name: Apply standalone v0.2 realism overlay
+      - name: Apply standalone v0.2 realism base
         shell: bash
         run: |
           cat cosmic_ci/v020_xz.part* | tr -d '\n\r' | base64 --decode > /tmp/cosmic-v020.tar.xz
           tar -xJf /tmp/cosmic-v020.tar.xz -C /tmp/cosmic
           python - <<'PY'
           from pathlib import Path
+          root = Path('/tmp/cosmic/CosmicExperiments')
+          manager = root/'src/main/java/neo/z_mods/cosmicexperiment/SpaceTravelManager.java'
+          text = manager.read_text(encoding='utf-8').replace('TRANSFER_DELAY_TICKS = 12', 'TRANSFER_DELAY_TICKS = 36')
+          manager.write_text(text, encoding='utf-8')
+          overlay = root/'src/main/resources/assets/cosmicexperiment/shaders/core/cosmic_overlay.fsh'
+          shader = overlay.read_text(encoding='utf-8').replace('alpha=phase*(Creative>0.5?0.78:0.90);', 'alpha=phase*0.98;')
+          overlay.write_text(shader, encoding='utf-8')
+          assert 'mod_version=0.2.0' in (root/'gradle.properties').read_text(encoding='utf-8')
+          PY
+
+      - name: Apply Cosmic Experiments v0.3 living-system overhaul
+        shell: bash
+        run: |
+          cat cosmic_ci/v030_patch.part00 cosmic_ci/v030_patch.part01 cosmic_ci/v030_patch.part02 \
+              cosmic_ci/v030_patch.part03 cosmic_ci/v030_patch.part04 cosmic_ci/v030_patch.part05 \
+              | tr -d '\n\r' | base64 --decode | xz -dc > /tmp/cosmic-v030.patch
+          cd /tmp/cosmic/CosmicExperiments
+          patch --batch --forward -p5 < /tmp/cosmic-v030.patch
+          python - <<'PY'
+          from pathlib import Path
           import json
           root = Path('/tmp/cosmic/CosmicExperiments')
-
-          # Give the atmospheric veil time to become opaque before Minecraft performs
-          # its unavoidable ServerLevel switch, then leave it visible long enough for
-          # chunks on the other side to settle. Momentum is restored by the server code.
-          manager = root/'src/main/java/neo/z_mods/cosmicexperiment/SpaceTravelManager.java'
-          text = manager.read_text(encoding='utf-8')
-          text = text.replace('TRANSFER_DELAY_TICKS = 12', 'TRANSFER_DELAY_TICKS = 36')
-          manager.write_text(text, encoding='utf-8')
-
-          overlay = root/'src/main/resources/assets/cosmicexperiment/shaders/core/cosmic_overlay.fsh'
-          shader_text = overlay.read_text(encoding='utf-8')
-          shader_text = shader_text.replace('alpha=phase*(Creative>0.5?0.78:0.90);', 'alpha=phase*0.98;')
-          overlay.write_text(shader_text, encoding='utf-8')
-
-          assert 'mod_version=0.2.0' in (root/'gradle.properties').read_text()
-          shader = (root/'src/main/resources/assets/cosmicexperiment/shaders/core/solar_system.fsh').read_text()
-          for token in ['EARTH_LAND[1024]', 'EarthRel', 'JupiterRel', 'SaturnRel', 'addFarPoint']:
-              assert token in shader, token
-          assert 'TRANSFER_DELAY_TICKS = 36' in manager.read_text(encoding='utf-8')
-          assert 'alpha=phase*0.98;' in overlay.read_text(encoding='utf-8')
+          assert 'mod_version=0.3.0' in (root/'gradle.properties').read_text(encoding='utf-8')
+          required = [
+              'src/main/java/neo/z_mods/cosmicexperiment/AstronomyClock.java',
+              'src/main/java/neo/z_mods/cosmicexperiment/HologramKind.java',
+              'src/main/java/neo/z_mods/cosmicexperiment/HologramSystem.java',
+              'src/main/java/neo/z_mods/cosmicexperiment/PlanetTerrainHandler.java',
+              'src/main/java/neo/z_mods/cosmicexperiment/SingularitySystem.java',
+              'src/main/resources/assets/cosmicexperiment/shaders/core/hologram.fsh',
+              'src/main/resources/assets/cosmicexperiment/shaders/core/planet_sky.fsh',
+          ]
+          for rel in required:
+              assert (root/rel).is_file(), rel
+          solar = (root/'src/main/resources/assets/cosmicexperiment/shaders/core/solar_system.fsh').read_text(encoding='utf-8')
+          for token in ['AstroDays', 'EarthRel', 'JupiterRel', 'SaturnRel', 'stableStarField']:
+              assert token in solar, token
+          hologram = (root/'src/main/resources/assets/cosmicexperiment/shaders/core/hologram.fsh').read_text(encoding='utf-8')
+          for token in ['ANDROMEDA', 'galaxy', 'singularity', 'supernova']:
+              assert token.lower() in hologram.lower(), token
           for path in (root/'src/main/resources/assets/cosmicexperiment/shaders/core').glob('*.json'):
-              json.loads(path.read_text())
-          print('v0.2 overlay integrity OK')
+              json.loads(path.read_text(encoding='utf-8'))
+          print('v0.3 payload integrity OK')
           PY
 
       - name: Set up Java 21
@@ -84,24 +102,23 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/dist
-          cp /tmp/cosmic/CosmicExperiments/build/libs/*.jar /tmp/dist/CosmicExperiments-v0.2.0.jar
+          cp /tmp/cosmic/CosmicExperiments/build/libs/*.jar /tmp/dist/CosmicExperiments-v0.3.0.jar
           cd /tmp/cosmic
-          zip -qr /tmp/dist/CosmicExperiments-v0.2.0-sources.zip CosmicExperiments \
+          zip -qr /tmp/dist/CosmicExperiments-v0.3.0-sources.zip CosmicExperiments \
             -x 'CosmicExperiments/.gradle/*' 'CosmicExperiments/build/*' 'CosmicExperiments/run/*'
           cat > /tmp/dist/README.txt <<'EOF'
-          Cosmic Experiments v0.2.0 — standalone NeoForge 1.21.1 mod
-          Separate from BioTech. Technical CI branch only; BioTech main is untouched.
-          Scale: 1 space block = 200 km; orbital distances and body radii use one shared physical scale.
-          v0.2: void-safe space, momentum-preserving atmospheric transfer, opaque transition veil,
-          geographic Earth mask, body-specific shaders, precision-safe relative coordinates,
-          and visible unresolved planets.
+          Cosmic Experiments v0.3.0 — standalone NeoForge 1.21.1 mod
+          Separate from BioTech; technical CI branch only.
+          v0.3: living orbital system, stable world-space stars, unique rocky-world terrain,
+          floorless gas-giant atmospheres, world-space shader holograms, per-body navigators,
+          Andromeda and Milky Way holograms, supernova test, and optional Singularity gravity.
           EOF
 
       - name: Upload standalone artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: CosmicExperiments-v0.2.0-standalone
+          name: CosmicExperiments-v0.3.0-standalone
           path: /tmp/dist/*
           retention-days: 14
           if-no-files-found: error
