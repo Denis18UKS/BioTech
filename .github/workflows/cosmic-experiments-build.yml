@@ -39,13 +39,9 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           root = Path('/tmp/cosmic/CosmicExperiments')
-          manager = root/'src/main/java/neo/z_mods/cosmicexperiment/SpaceTravelManager.java'
-          text = manager.read_text(encoding='utf-8').replace('TRANSFER_DELAY_TICKS = 12', 'TRANSFER_DELAY_TICKS = 36')
-          manager.write_text(text, encoding='utf-8')
-          overlay = root/'src/main/resources/assets/cosmicexperiment/shaders/core/cosmic_overlay.fsh'
-          shader = overlay.read_text(encoding='utf-8').replace('alpha=phase*(Creative>0.5?0.78:0.90);', 'alpha=phase*0.98;')
-          overlay.write_text(shader, encoding='utf-8')
           assert 'mod_version=0.2.0' in (root/'gradle.properties').read_text(encoding='utf-8')
+          assert 'TRANSFER_DELAY_TICKS = 12' in (root/'src/main/java/neo/z_mods/cosmicexperiment/SpaceTravelManager.java').read_text(encoding='utf-8')
+          print('clean v0.2 base restored')
           PY
 
       - name: Apply Cosmic Experiments v0.3 living-system overhaul
@@ -76,8 +72,10 @@ jobs:
           for token in ['AstroDays', 'EarthRel', 'JupiterRel', 'SaturnRel', 'stableStarField']:
               assert token in solar, token
           hologram = (root/'src/main/resources/assets/cosmicexperiment/shaders/core/hologram.fsh').read_text(encoding='utf-8')
-          for token in ['ANDROMEDA', 'galaxy', 'singularity', 'supernova']:
-              assert token.lower() in hologram.lower(), token
+          for token in ['andromeda', 'galaxy', 'singularity', 'supernova']:
+              assert token in hologram.lower(), token
+          manager = (root/'src/main/java/neo/z_mods/cosmicexperiment/SpaceTravelManager.java').read_text(encoding='utf-8')
+          assert 'TRANSFER_DELAY_TICKS = 36' in manager
           for path in (root/'src/main/resources/assets/cosmicexperiment/shaders/core').glob('*.json'):
               json.loads(path.read_text(encoding='utf-8'))
           print('v0.3 payload integrity OK')
