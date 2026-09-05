@@ -52,9 +52,17 @@ rm -rf "$TMP"
 cd "$ROOT"
 ./gradlew build --stacktrace
 
-MAIN_JAR=$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | sort | head -n 1)
-test -n "$MAIN_JAR"
+MAIN_JAR="build/libs/cosmicexperiment-0.3.4.jar"
+test -f "$MAIN_JAR"
 cp "$MAIN_JAR" "$DIST/CosmicExperiments-v0.3.4.jar"
+
+# Verify the exact bytes that will be uploaded, not just the source tree.
+unzip -p "$DIST/CosmicExperiments-v0.3.4.jar" META-INF/neoforge.mods.toml | grep -F 'version = "0.3.4"'
+jar tf "$DIST/CosmicExperiments-v0.3.4.jar" | grep -Fx 'neo/z_mods/cosmicexperiment/CelestialSkyMath.class'
+jar tf "$DIST/CosmicExperiments-v0.3.4.jar" | grep -Fx 'neo/z_mods/cosmicexperiment/client/CosmicShaderRenderer.class'
+jar tf "$DIST/CosmicExperiments-v0.3.4.jar" | grep -Fx 'assets/cosmicexperiment/shaders/core/planet_sky.fsh'
+jar tf "$DIST/CosmicExperiments-v0.3.4.jar" | grep -Fx 'neo/z_mods/cosmicexperiment/SupersonicFlightSystem.class'
+
 cd /tmp/cosmic
 zip -qr "$DIST/CosmicExperiments-v0.3.4-sources.zip" CosmicExperiments \
   -x 'CosmicExperiments/.gradle/*' 'CosmicExperiments/build/*' 'CosmicExperiments/run/*'
