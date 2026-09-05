@@ -37,7 +37,8 @@ commands=(root/'src/main/java/neo/z_mods/cosmicexperiment/CosmicCommands.java').
 flight=(root/'src/main/java/neo/z_mods/cosmicexperiment/SupersonicFlightSystem.java').read_text(encoding='utf-8')
 assert 'GLFW.GLFW_KEY_J' in keys
 assert 'literal("solar_speed")' in commands and 'literal("solar_pause")' in commands
-assert 'teleport' not in flight.lower()
+# Comments may say "No teleport"; reject only actual teleport/dimension-change invocations.
+assert not re.search(r'\.(?:teleportTo|teleport|changeDimension)\s*\(', flight)
 print('v0.3.4 static celestial-sky contract: PASS')
 PY
 
