@@ -52,7 +52,9 @@ rm -rf "$TMP"
 cd "$ROOT"
 ./gradlew build --stacktrace
 
-cp build/libs/*.jar "$DIST/CosmicExperiments-v0.3.4.jar"
+MAIN_JAR=$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | sort | head -n 1)
+test -n "$MAIN_JAR"
+cp "$MAIN_JAR" "$DIST/CosmicExperiments-v0.3.4.jar"
 cd /tmp/cosmic
 zip -qr "$DIST/CosmicExperiments-v0.3.4-sources.zip" CosmicExperiments \
   -x 'CosmicExperiments/.gradle/*' 'CosmicExperiments/build/*' 'CosmicExperiments/run/*'
